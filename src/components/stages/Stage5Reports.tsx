@@ -3,15 +3,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { FileText, ChevronLeft, Printer, Trophy } from 'lucide-react';
+import { FileText, ChevronLeft, Printer, Trophy, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 const Stage5Reports = () => {
-  const { state, updateResultado, setStep } = useCompetition();
+  const { state, updateResultado, setStep, finalize, saving } = useCompetition();
   const { evento, competidores, jogos, resultados, logistica, disputa } = state;
 
   const handlePrint = () => window.print();
 
-  // Classificação simples baseada em vitórias
   const classificacao = () => {
     const pontos: Record<string, number> = {};
     const nomes = competidores.tipo === 'individual'
@@ -34,6 +33,11 @@ const Stage5Reports = () => {
 
   const ranking = classificacao();
 
+  const handleFinalize = () => {
+    if (!confirm('Tem certeza que deseja finalizar este evento? Os resultados ficarão visíveis para todos os usuários.')) return;
+    finalize();
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in-up">
       {/* Header */}
@@ -52,6 +56,13 @@ const Stage5Reports = () => {
             <p><strong>Organizador(es):</strong> {evento.organizadores || '—'}</p>
             <p><strong>Sistema:</strong> {disputa.sistema || '—'} | <strong>Tipo:</strong> {competidores.tipo || '—'}</p>
           </div>
+
+          {state.finalizado && (
+            <div className="mt-4 flex items-center gap-2 text-success bg-success/10 rounded-lg p-3">
+              <CheckCircle2 className="w-5 h-5" />
+              <span className="font-semibold">Evento finalizado — resultados publicados para todos os usuários.</span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -85,6 +96,7 @@ const Stage5Reports = () => {
                             type="number" min={0} className="w-16 h-8 text-center mx-auto"
                             value={r?.placarA ?? ''}
                             onChange={e => updateResultado(j.id, parseInt(e.target.value) || 0, r?.placarB || 0)}
+                            disabled={state.finalizado}
                           />
                         </td>
                         <td className="p-2 font-medium">{j.participanteB}</td>
@@ -93,6 +105,7 @@ const Stage5Reports = () => {
                             type="number" min={0} className="w-16 h-8 text-center mx-auto"
                             value={r?.placarB ?? ''}
                             onChange={e => updateResultado(j.id, r?.placarA || 0, parseInt(e.target.value) || 0)}
+                            disabled={state.finalizado}
                           />
                         </td>
                       </tr>
@@ -141,11 +154,18 @@ const Stage5Reports = () => {
         </Card>
       )}
 
-      <div className="flex justify-between">
+      <div className="flex flex-col sm:flex-row justify-between gap-3">
         <Button variant="outline" onClick={() => setStep(4)}><ChevronLeft className="w-4 h-4 mr-1" /> Voltar</Button>
-        <Button onClick={handlePrint} className="gradient-primary text-primary-foreground">
-          <Printer className="w-4 h-4 mr-2" /> Imprimir Relatório
-        </Button>
+        <div className="flex gap-3">
+          <Button onClick={handlePrint} variant="outline">
+            <Printer className="w-4 h-4 mr-2" /> Imprimir
+          </Button>
+          {!state.finalizado && (
+            <Button onClick={handleFinalize} disabled={saving} className="bg-success text-success-foreground hover:bg-success/90">
+              <CheckCircle2 className="w-4 h-4 mr-2" /> Finalizar Evento
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
