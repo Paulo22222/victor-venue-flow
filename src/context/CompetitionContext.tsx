@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { CompetitionState, EventData, CompetidoresData, DisputaData, LogisticaData, Jogo } from '@/types/competition';
-import { saveCompetition, loadCompetition, deleteCompetition } from '@/services/competitionService';
+import { saveCompetition, loadCompetition, deleteCompetition, finalizeCompetition } from '@/services/competitionService';
 import { toast } from '@/hooks/use-toast';
 
 const initialState: CompetitionState = {
@@ -11,6 +11,7 @@ const initialState: CompetitionState = {
   logistica: { modalidadeId: '', local: '', dia: '', horarioInicio: '', espacosDisponiveis: 1, equipeArbitragem: '', coordenadorQuadra: '', outrosEnvolvidos: '', tempoTotalDisponivel: 300, tempoPorPartida: 20, tempoIntervalo: 5, intervaloRefeicao: false },
   jogos: [],
   resultados: {},
+  finalizado: false,
 };
 
 interface CompetitionContextType {
@@ -28,6 +29,7 @@ interface CompetitionContextType {
   load: (id: string) => Promise<void>;
   resetState: () => void;
   remove: (id: string) => Promise<void>;
+  finalize: () => Promise<void>;
 }
 
 const CompetitionContext = createContext<CompetitionContextType | null>(null);
@@ -51,7 +53,7 @@ export const CompetitionProvider = ({ children }: { children: ReactNode }) => {
     try {
       const id = await saveCompetition(state, competitionId ?? undefined);
       setCompetitionId(id);
-      toast({ title: 'Competição salva!', description: 'Dados salvos com sucesso no banco de dados.' });
+      toast({ title: 'Competição salva!', description: 'Dados salvos com sucesso.' });
     } catch (err: any) {
       toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
     } finally {
@@ -84,8 +86,28 @@ export const CompetitionProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const finalize = async () => {
+    if (!competitionId) {
+      toast({ title: 'Erro', description: 'Salve a competição antes de finalizar.', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      // Save current state first
+      await saveCompetition(state, competitionId);
+      // Then finalize
+      await finalizeCompetition(competitionId);
+      setState(prev => ({ ...prev, finalizado: true }));
+      toast({ title: 'Evento Finalizado!', description: 'Os resultados agora estão visíveis para todos os usuários.' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao finalizar', description: err.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <CompetitionContext.Provider value={{ state, competitionId, saving, setStep, updateEvento, updateCompetidores, updateDisputa, updateLogistica, setJogos, updateResultado, save, load, resetState, remove }}>
+    <CompetitionContext.Provider value={{ state, competitionId, saving, setStep, updateEvento, updateCompetidores, updateDisputa, updateLogistica, setJogos, updateResultado, save, load, resetState, remove, finalize }}>
       {children}
     </CompetitionContext.Provider>
   );

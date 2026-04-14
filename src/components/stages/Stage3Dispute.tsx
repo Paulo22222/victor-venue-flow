@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { useCompetition } from '@/context/CompetitionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Swords, ChevronLeft, Calculator, Info } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Swords, ChevronLeft, Calculator, Info, Shuffle, Edit3, Trash2 } from 'lucide-react';
 import { calcRodizio, calcEliminatorioSimples, calcMisto, calcSuico, gerarTabelaRodizio, gerarTabelaEliminatoria } from '@/utils/disputeCalculations';
 import { SistemaDisputa, Jogo } from '@/types/competition';
 
@@ -18,6 +21,10 @@ const sistemaInfo: Record<string, { nome: string; desc: string }> = {
 const Stage3Dispute = () => {
   const { state, updateDisputa, setJogos, setStep } = useCompetition();
   const { disputa, competidores } = state;
+  const [modoManual, setModoManual] = useState(false);
+  const [manualA, setManualA] = useState('');
+  const [manualB, setManualB] = useState('');
+  const [manualRodada, setManualRodada] = useState(1);
 
   const n = competidores.tipo === 'individual' ? competidores.atletas.length : competidores.equipes.length;
   const nomes = competidores.tipo === 'individual'
@@ -49,7 +56,6 @@ const Stage3Dispute = () => {
     } else if (disputa.sistema === 'eliminatorio') {
       tabelaRaw = gerarTabelaEliminatoria(nomes);
     } else {
-      // For misto/suico, fallback to rodizio for now
       tabelaRaw = gerarTabelaRodizio(nomes);
     }
     const jogos: Jogo[] = tabelaRaw.map((j, i) => ({
@@ -59,6 +65,23 @@ const Stage3Dispute = () => {
       participanteB: j.jogoB,
     }));
     setJogos(jogos);
+  };
+
+  const addManualMatch = () => {
+    if (!manualA || !manualB || manualA === manualB) return;
+    const newJogo: Jogo = {
+      id: `jogo-manual-${Date.now()}`,
+      rodada: manualRodada,
+      participanteA: manualA,
+      participanteB: manualB,
+    };
+    setJogos([...state.jogos, newJogo]);
+    setManualA('');
+    setManualB('');
+  };
+
+  const removeJogo = (id: string) => {
+    setJogos(state.jogos.filter(j => j.id !== id));
   };
 
   return (
@@ -155,15 +178,66 @@ const Stage3Dispute = () => {
             />
           </div>
 
-          {n >= 2 && disputa.sistema && (
-            <Button onClick={gerarTabela} className="gradient-primary text-primary-foreground w-full">
-              <Swords className="w-4 h-4 mr-2" /> Gerar Tabela de Jogos Automaticamente
+          {/* Botões de geração */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            {n >= 2 && disputa.sistema && (
+              <Button onClick={gerarTabela} className="gradient-primary text-primary-foreground flex-1">
+                <Shuffle className="w-4 h-4 mr-2" /> Gerar Tabela Automaticamente
+              </Button>
+            )}
+            <Button
+              variant={modoManual ? 'default' : 'outline'}
+              onClick={() => setModoManual(!modoManual)}
+              className={modoManual ? 'gradient-accent text-accent-foreground flex-1' : 'flex-1'}
+            >
+              <Edit3 className="w-4 h-4 mr-2" /> Chaveamento Manual
             </Button>
+          </div>
+
+          {/* Manual bracket */}
+          {modoManual && (
+            <Card className="border-2 border-dashed border-accent">
+              <CardContent className="p-4 space-y-4">
+                <h4 className="font-heading font-semibold flex items-center gap-2">
+                  <Edit3 className="w-5 h-5 text-accent" /> Chaveamento Manual
+                </h4>
+                <p className="text-sm text-muted-foreground">Selecione os participantes para criar confrontos manualmente.</p>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div>
+                    <Label>Rodada</Label>
+                    <Input type="number" min={1} value={manualRodada} onChange={e => setManualRodada(parseInt(e.target.value) || 1)} />
+                  </div>
+                  <div>
+                    <Label>Participante A</Label>
+                    <Select value={manualA} onValueChange={setManualA}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {nomes.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Participante B</Label>
+                    <Select value={manualB} onValueChange={setManualB}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {nomes.filter(nm => nm !== manualA).map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-end">
+                    <Button onClick={addManualMatch} className="gradient-primary text-primary-foreground w-full" disabled={!manualA || !manualB}>
+                      Adicionar Jogo
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {state.jogos.length > 0 && (
             <div className="space-y-2">
-              <h4 className="font-heading font-semibold">Tabela Gerada</h4>
+              <h4 className="font-heading font-semibold">Tabela de Jogos ({state.jogos.length})</h4>
               <div className="rounded-lg border overflow-hidden max-h-80 overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-muted sticky top-0">
@@ -172,6 +246,7 @@ const Stage3Dispute = () => {
                       <th className="p-2 text-left">Participante A</th>
                       <th className="p-2 text-center">×</th>
                       <th className="p-2 text-left">Participante B</th>
+                      <th className="p-2 w-10"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -181,12 +256,16 @@ const Stage3Dispute = () => {
                         <td className="p-2 font-medium">{j.participanteA}</td>
                         <td className="p-2 text-center text-muted-foreground">×</td>
                         <td className="p-2 font-medium">{j.participanteB}</td>
+                        <td className="p-2">
+                          <button onClick={() => removeJogo(j.id)} className="text-destructive hover:text-destructive/80">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <p className="text-muted-foreground text-sm">{state.jogos.length} jogo(s) gerado(s)</p>
             </div>
           )}
 
