@@ -8,15 +8,16 @@ export interface SavedCompetition {
   modalidade: string;
   created_at: string;
   updated_at: string;
+  finalizado: boolean;
 }
 
 export async function listCompetitions(): Promise<SavedCompetition[]> {
   const { data, error } = await supabase
     .from('competitions')
-    .select('id, nome, data, modalidade, created_at, updated_at')
+    .select('id, nome, data, modalidade, created_at, updated_at, finalizado')
     .order('updated_at', { ascending: false });
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).map(d => ({ ...d, finalizado: d.finalizado ?? false }));
 }
 
 export async function saveCompetition(state: CompetitionState, existingId?: string): Promise<string> {
@@ -73,10 +74,8 @@ export async function saveCompetition(state: CompetitionState, existingId?: stri
     supabase.from('competition_matches').delete().eq('competition_id', competitionId),
   ]);
 
-  // Delete teams (cascade deletes team_members)
   await supabase.from('competition_teams').delete().eq('competition_id', competitionId);
 
-  // Insert modalities
   if (state.competidores.modalidades.length > 0) {
     await supabase.from('competition_modalities').insert(
       state.competidores.modalidades.map(m => ({
@@ -86,21 +85,17 @@ export async function saveCompetition(state: CompetitionState, existingId?: stri
     );
   }
 
-  // Insert athletes
   if (state.competidores.atletas.length > 0) {
     await supabase.from('competition_athletes').insert(
       state.competidores.atletas.map(a => ({
         competition_id: competitionId,
         nome: a.nome,
-        data_nascimento: a.dataNascimento,
-        documento: a.documento,
         genero: a.genero,
         codigo: a.codigo || null,
       }))
     );
   }
 
-  // Insert teams and members
   for (const equipe of state.competidores.equipes) {
     const { data: teamData, error: teamError } = await supabase
       .from('competition_teams')
@@ -118,8 +113,6 @@ export async function saveCompetition(state: CompetitionState, existingId?: stri
         equipe.integrantes.map(i => ({
           team_id: teamData.id,
           nome: i.nome,
-          data_nascimento: i.dataNascimento,
-          documento: i.documento,
           genero: i.genero,
           codigo: i.codigo || null,
         }))
@@ -127,7 +120,6 @@ export async function saveCompetition(state: CompetitionState, existingId?: stri
     }
   }
 
-  // Insert matches
   if (state.jogos.length > 0) {
     await supabase.from('competition_matches').insert(
       state.jogos.map(j => ({
@@ -165,13 +157,12 @@ export async function loadCompetition(id: string): Promise<CompetitionState> {
   const atletas: Atleta[] = (athRes.data ?? []).map(a => ({
     id: a.id,
     nome: a.nome,
-    dataNascimento: a.data_nascimento || '',
-    documento: a.documento || '',
+    dataNascimento: '',
+    documento: '',
     genero: (a.genero as Atleta['genero']) || 'masculino',
     codigo: a.codigo || undefined,
   }));
 
-  // Load teams with members
   const equipes: Equipe[] = [];
   for (const t of teamRes.data ?? []) {
     const { data: members } = await supabase
@@ -185,8 +176,8 @@ export async function loadCompetition(id: string): Promise<CompetitionState> {
       integrantes: (members ?? []).map(m => ({
         id: m.id,
         nome: m.nome,
-        dataNascimento: m.data_nascimento || '',
-        documento: m.documento || '',
+        dataNascimento: '',
+        documento: '',
         genero: (m.genero as Atleta['genero']) || 'masculino',
         codigo: m.codigo || undefined,
       })),
@@ -251,10 +242,19 @@ export async function loadCompetition(id: string): Promise<CompetitionState> {
     },
     jogos,
     resultados,
+    finalizado: comp.finalizado ?? false,
   };
 }
 
 export async function deleteCompetition(id: string): Promise<void> {
   const { error } = await supabase.from('competitions').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function finalizeCompetition(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('competitions')
+    .update({ finalizado: true })
+    .eq('id', id);
   if (error) throw error;
 }

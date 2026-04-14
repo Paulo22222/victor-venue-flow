@@ -80,4 +80,5 @@ export interface CompetitionState {
   logistica: LogisticaData;
   jogos: Jogo[];
   resultados: Record<string, { placarA: number; placarB: number }>;
+  finalizado: boolean;
 }
