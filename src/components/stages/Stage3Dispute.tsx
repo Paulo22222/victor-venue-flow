@@ -90,7 +90,7 @@ const Stage3Dispute = () => {
         <CardHeader className="gradient-primary rounded-t-lg">
           <CardTitle className="text-primary-foreground flex items-center gap-2">
             <Swords className="w-6 h-6" />
-            Etapa III — Sistema de Disputa
+            Etapa IV — Sistema de Disputa
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
@@ -270,8 +270,8 @@ const Stage3Dispute = () => {
           )}
 
           <div className="flex justify-between pt-4">
-            <Button variant="outline" onClick={() => setStep(2)}><ChevronLeft className="w-4 h-4 mr-1" /> Voltar</Button>
-            <Button onClick={() => setStep(4)} className="gradient-primary text-primary-foreground px-8">Próximo →</Button>
+            <Button variant="outline" onClick={() => setStep(3)}><ChevronLeft className="w-4 h-4 mr-1" /> Voltar</Button>
+            <Button onClick={() => setStep(5)} className="gradient-primary text-primary-foreground px-8">Próximo →</Button>
           </div>
         </CardContent>
       </Card>

@@ -4,10 +4,11 @@ import HomePage from '@/components/HomePage';
 import AdminPanel from '@/components/AdminPanel';
 import StepIndicator from '@/components/StepIndicator';
 import Stage1Event from '@/components/stages/Stage1Event';
-import Stage2Competitors from '@/components/stages/Stage2Competitors';
-import Stage3Dispute from '@/components/stages/Stage3Dispute';
-import Stage4Logistics from '@/components/stages/Stage4Logistics';
-import Stage5Reports from '@/components/stages/Stage5Reports';
+import Stage2Categories from '@/components/stages/Stage2Categories';
+import Stage3Competitors from '@/components/stages/Stage2Competitors';
+import Stage4Dispute from '@/components/stages/Stage3Dispute';
+import Stage5Logistics from '@/components/stages/Stage4Logistics';
+import Stage6Reports from '@/components/stages/Stage5Reports';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Save, Loader2, LogOut, Shield } from 'lucide-react';
@@ -72,10 +73,11 @@ const CompetitionApp = () => {
 
       <main className="container mx-auto px-4 pb-16">
         {state.currentStep === 1 && <Stage1Event />}
-        {state.currentStep === 2 && <Stage2Competitors />}
-        {state.currentStep === 3 && <Stage3Dispute />}
-        {state.currentStep === 4 && <Stage4Logistics />}
-        {state.currentStep === 5 && <Stage5Reports />}
+        {state.currentStep === 2 && <Stage2Categories />}
+        {state.currentStep === 3 && <Stage3Competitors />}
+        {state.currentStep === 4 && <Stage4Dispute />}
+        {state.currentStep === 5 && <Stage5Logistics />}
+        {state.currentStep === 6 && <Stage6Reports />}
       </main>
     </div>
   );

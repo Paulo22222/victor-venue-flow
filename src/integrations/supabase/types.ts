@@ -23,6 +23,7 @@ export type Database = {
           documento: string | null
           genero: string | null
           id: string
+          modalidade: string | null
           nome: string
         }
         Insert: {
@@ -33,6 +34,7 @@ export type Database = {
           documento?: string | null
           genero?: string | null
           id?: string
+          modalidade?: string | null
           nome: string
         }
         Update: {
@@ -43,6 +45,7 @@ export type Database = {
           documento?: string | null
           genero?: string | null
           id?: string
+          modalidade?: string | null
           nome?: string
         }
         Relationships: [
@@ -137,6 +140,7 @@ export type Database = {
           created_at: string
           genero: string | null
           id: string
+          modalidade: string | null
           nome: string
         }
         Insert: {
@@ -144,6 +148,7 @@ export type Database = {
           created_at?: string
           genero?: string | null
           id?: string
+          modalidade?: string | null
           nome: string
         }
         Update: {
@@ -151,6 +156,7 @@ export type Database = {
           created_at?: string
           genero?: string | null
           id?: string
+          modalidade?: string | null
           nome?: string
         }
         Relationships: [

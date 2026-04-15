@@ -43,7 +43,7 @@ const Stage5Reports = () => {
         <CardHeader className="gradient-primary rounded-t-lg">
           <CardTitle className="text-primary-foreground flex items-center gap-2">
             <FileText className="w-6 h-6" />
-            Etapa V — Relatórios e Boletins
+            Etapa VI — Relatórios e Boletins
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
@@ -157,7 +157,7 @@ const Stage5Reports = () => {
       )}
 
       <div className="flex flex-col sm:flex-row justify-between gap-3">
-        <Button variant="outline" onClick={() => setStep(4)}>
+        <Button variant="outline" onClick={() => setStep(5)}>
           <ChevronLeft className="w-4 h-4 mr-1" /> Voltar
         </Button>
         <div className="flex gap-3">

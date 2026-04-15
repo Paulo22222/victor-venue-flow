@@ -92,6 +92,7 @@ export async function saveCompetition(state: CompetitionState, existingId?: stri
         nome: a.nome,
         genero: a.genero,
         codigo: a.codigo || null,
+        modalidade: a.modalidade || null,
       }))
     );
   }
@@ -103,6 +104,7 @@ export async function saveCompetition(state: CompetitionState, existingId?: stri
         competition_id: competitionId,
         nome: equipe.nome,
         genero: equipe.genero,
+        modalidade: equipe.modalidade || null,
       })
       .select('id')
       .single();
@@ -161,6 +163,7 @@ export async function loadCompetition(id: string): Promise<CompetitionState> {
     documento: '',
     genero: (a.genero as Atleta['genero']) || 'masculino',
     codigo: a.codigo || undefined,
+    modalidade: a.modalidade || undefined,
   }));
 
   const equipes: Equipe[] = [];
@@ -173,6 +176,7 @@ export async function loadCompetition(id: string): Promise<CompetitionState> {
       id: t.id,
       nome: t.nome,
       genero: (t.genero as Equipe['genero']) || 'masculino',
+      modalidade: t.modalidade || undefined,
       integrantes: (members ?? []).map(m => ({
         id: m.id,
         nome: m.nome,
