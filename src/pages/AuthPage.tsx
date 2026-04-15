@@ -27,7 +27,7 @@ const AuthPage = () => {
         await signUp(email, password, displayName);
         toast({
           title: 'Cadastro realizado!',
-          description: 'Verifique seu e-mail para confirmar a conta.',
+          description: 'Você já pode fazer login.',
         });
       }
     } catch (err: any) {
@@ -39,41 +39,43 @@ const AuthPage = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 gradient-hero">
-      <Card className="w-full max-w-md shadow-elevated border-0">
+      <Card className="w-full max-w-sm shadow-elevated border-0">
         <CardHeader className="text-center pb-2">
-          <img src={logo} alt="IF Competition" className="w-20 h-20 mx-auto mb-4" />
-          <CardTitle className="font-heading text-2xl text-foreground">
+          <img src={logo} alt="IF Competition" className="w-16 h-16 mx-auto mb-3" />
+          <CardTitle className="font-heading text-xl text-foreground">
             IF Competition 2026
           </CardTitle>
-          <p className="text-sm text-muted-foreground mt-1">
-            {isLogin ? 'Faça login para acessar o sistema' : 'Crie sua conta para começar'}
+          <p className="text-xs text-muted-foreground mt-1">
+            {isLogin ? 'Faça login para acessar' : 'Crie sua conta'}
           </p>
         </CardHeader>
-        <CardContent className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <CardContent className="p-5">
+          <form onSubmit={handleSubmit} className="space-y-3">
             {!isLogin && (
               <div>
-                <Label>Nome</Label>
+                <Label className="text-xs">Nome</Label>
                 <Input
                   value={displayName}
                   onChange={e => setDisplayName(e.target.value)}
                   placeholder="Seu nome completo"
                   required
+                  className="h-9"
                 />
               </div>
             )}
             <div>
-              <Label>E-mail</Label>
+              <Label className="text-xs">E-mail</Label>
               <Input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="seu@email.com"
                 required
+                className="h-9"
               />
             </div>
             <div>
-              <Label>Senha</Label>
+              <Label className="text-xs">Senha</Label>
               <Input
                 type="password"
                 value={password}
@@ -81,17 +83,18 @@ const AuthPage = () => {
                 placeholder="••••••••"
                 required
                 minLength={6}
+                className="h-9"
               />
             </div>
-            <Button type="submit" disabled={loading} className="w-full gradient-primary text-primary-foreground">
+            <Button type="submit" disabled={loading} className="w-full gradient-primary text-primary-foreground h-9">
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : isLogin ? <LogIn className="w-4 h-4 mr-2" /> : <UserPlus className="w-4 h-4 mr-2" />}
               {isLogin ? 'Entrar' : 'Cadastrar'}
             </Button>
           </form>
-          <div className="text-center mt-4">
+          <div className="text-center mt-3">
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-primary hover:underline"
+              className="text-xs text-primary hover:underline"
             >
               {isLogin ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Faça login'}
             </button>
