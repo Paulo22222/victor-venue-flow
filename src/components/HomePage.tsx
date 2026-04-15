@@ -1,7 +1,7 @@
 import { useCompetition } from '@/context/CompetitionContext';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Trophy, Users, Swords, MapPin, FileText, ArrowRight, Loader2, Trash2, FolderOpen, Download, Shield } from 'lucide-react';
+import { Trophy, Users, Swords, MapPin, FileText, ArrowRight, Loader2, Trash2, FolderOpen, Download, Shield, ListChecks } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { listCompetitions, SavedCompetition } from '@/services/competitionService';
 import { Badge } from '@/components/ui/badge';
@@ -9,10 +9,11 @@ import logo from '@/assets/logo.png';
 
 const steps = [
   { icon: Trophy, label: 'Cadastro do Evento', desc: 'Informações gerais da competição', step: 1 },
-  { icon: Users, label: 'Competidores', desc: 'Atletas, equipes e modalidades', step: 2 },
-  { icon: Swords, label: 'Sistema de Disputas', desc: 'Rodízio, eliminatória ou misto', step: 3 },
-  { icon: MapPin, label: 'Logística', desc: 'Locais, horários e programação', step: 4 },
-  { icon: FileText, label: 'Relatórios', desc: 'Resultados e boletins em PDF', step: 5 },
+  { icon: ListChecks, label: 'Categorias', desc: 'Modalidades esportivas do evento', step: 2 },
+  { icon: Users, label: 'Competidores', desc: 'Atletas e equipes por categoria', step: 3 },
+  { icon: Swords, label: 'Sistema de Disputas', desc: 'Rodízio, eliminatória ou misto', step: 4 },
+  { icon: MapPin, label: 'Logística', desc: 'Locais, horários e programação', step: 5 },
+  { icon: FileText, label: 'Relatórios', desc: 'Resultados e boletins em PDF', step: 6 },
 ];
 
 const guideContent = `# IF Competition 2026 — Guia de Execução Local
