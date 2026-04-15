@@ -17,6 +17,7 @@ export interface Atleta {
   documento: string;
   genero: 'masculino' | 'feminino' | 'misto' | 'outro';
   codigo?: string;
+  modalidade?: string;
 }
 
 export interface Equipe {
@@ -24,6 +25,7 @@ export interface Equipe {
   nome: string;
   genero: 'masculino' | 'feminino' | 'misto';
   integrantes: Atleta[];
+  modalidade?: string;
 }
 
 export interface Modalidade {
