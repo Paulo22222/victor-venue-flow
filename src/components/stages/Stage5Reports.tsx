@@ -3,13 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { FileText, ChevronLeft, Printer, Trophy, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { FileText, ChevronLeft, Download, Trophy, CheckCircle2 } from 'lucide-react';
+import { generateCompetitionPDF } from '@/utils/pdfGenerator';
 
 const Stage5Reports = () => {
   const { state, updateResultado, setStep, finalize, saving } = useCompetition();
-  const { evento, competidores, jogos, resultados, logistica, disputa } = state;
-
-  const handlePrint = () => window.print();
+  const { evento, competidores, jogos, resultados, disputa, logistica } = state;
 
   const classificacao = () => {
     const pontos: Record<string, number> = {};
@@ -40,8 +39,7 @@ const Stage5Reports = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in-up">
-      {/* Header */}
-      <Card className="shadow-card border-0">
+      <Card className="border-0 shadow-card">
         <CardHeader className="gradient-primary rounded-t-lg">
           <CardTitle className="text-primary-foreground flex items-center gap-2">
             <FileText className="w-6 h-6" />
@@ -60,7 +58,7 @@ const Stage5Reports = () => {
           {state.finalizado && (
             <div className="mt-4 flex items-center gap-2 text-success bg-success/10 rounded-lg p-3">
               <CheckCircle2 className="w-5 h-5" />
-              <span className="font-semibold">Evento finalizado — resultados publicados para todos os usuários.</span>
+              <span className="font-semibold">Evento finalizado — resultados publicados.</span>
             </div>
           )}
         </CardContent>
@@ -68,9 +66,11 @@ const Stage5Reports = () => {
 
       {/* Resultados dos jogos */}
       {jogos.length > 0 && (
-        <Card className="shadow-card border-0">
+        <Card className="border-0 shadow-card">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2"><Trophy className="w-5 h-5 text-accent" /> Resultados dos Jogos</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-accent" /> Resultados dos Jogos
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="rounded-lg border overflow-hidden max-h-96 overflow-y-auto">
@@ -120,9 +120,11 @@ const Stage5Reports = () => {
 
       {/* Classificação */}
       {ranking.length > 0 && (
-        <Card className="shadow-card border-0">
+        <Card className="border-0 shadow-card">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2"><Trophy className="w-5 h-5 text-primary" /> Classificação</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-primary" /> Classificação
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="rounded-lg border overflow-hidden">
@@ -155,10 +157,12 @@ const Stage5Reports = () => {
       )}
 
       <div className="flex flex-col sm:flex-row justify-between gap-3">
-        <Button variant="outline" onClick={() => setStep(4)}><ChevronLeft className="w-4 h-4 mr-1" /> Voltar</Button>
+        <Button variant="outline" onClick={() => setStep(4)}>
+          <ChevronLeft className="w-4 h-4 mr-1" /> Voltar
+        </Button>
         <div className="flex gap-3">
-          <Button onClick={handlePrint} variant="outline">
-            <Printer className="w-4 h-4 mr-2" /> Imprimir
+          <Button onClick={() => generateCompetitionPDF(state)} variant="outline">
+            <Download className="w-4 h-4 mr-2" /> Exportar PDF
           </Button>
           {!state.finalizado && (
             <Button onClick={handleFinalize} disabled={saving} className="bg-success text-success-foreground hover:bg-success/90">
