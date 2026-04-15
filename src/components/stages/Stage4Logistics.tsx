@@ -21,7 +21,7 @@ const Stage4Logistics = () => {
         <CardHeader className="gradient-primary rounded-t-lg">
           <CardTitle className="text-primary-foreground flex items-center gap-2">
             <MapPin className="w-6 h-6" />
-            Etapa IV — Logística e Programação
+            Etapa V — Logística e Programação
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6 space-y-5">
@@ -101,8 +101,8 @@ const Stage4Logistics = () => {
           </Card>
 
           <div className="flex justify-between pt-4">
-            <Button variant="outline" onClick={() => setStep(3)}><ChevronLeft className="w-4 h-4 mr-1" /> Voltar</Button>
-            <Button onClick={() => setStep(5)} className="gradient-primary text-primary-foreground px-8">Próximo →</Button>
+            <Button variant="outline" onClick={() => setStep(4)}><ChevronLeft className="w-4 h-4 mr-1" /> Voltar</Button>
+            <Button onClick={() => setStep(6)} className="gradient-primary text-primary-foreground px-8">Próximo →</Button>
           </div>
         </CardContent>
       </Card>
