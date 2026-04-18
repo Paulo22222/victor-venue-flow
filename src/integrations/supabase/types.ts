@@ -262,6 +262,77 @@ export type Database = {
         }
         Relationships: []
       }
+      organizer_team_members: {
+        Row: {
+          codigo: string | null
+          created_at: string
+          data_nascimento: string | null
+          documento: string | null
+          genero: string | null
+          id: string
+          nome: string
+          team_id: string
+        }
+        Insert: {
+          codigo?: string | null
+          created_at?: string
+          data_nascimento?: string | null
+          documento?: string | null
+          genero?: string | null
+          id?: string
+          nome: string
+          team_id: string
+        }
+        Update: {
+          codigo?: string | null
+          created_at?: string
+          data_nascimento?: string | null
+          documento?: string | null
+          genero?: string | null
+          id?: string
+          nome?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizer_team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "organizer_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizer_teams: {
+        Row: {
+          created_at: string
+          genero: string | null
+          id: string
+          modalidade: string
+          nome: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          genero?: string | null
+          id?: string
+          modalidade: string
+          nome: string
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          genero?: string | null
+          id?: string
+          modalidade?: string
+          nome?: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -350,6 +421,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_team_owner: { Args: { _team_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -359,7 +431,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "viewer"
+      app_role: "admin" | "viewer" | "organizer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -487,7 +559,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "viewer"],
+      app_role: ["admin", "viewer", "organizer"],
     },
   },
 } as const
