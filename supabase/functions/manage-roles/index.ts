@@ -12,7 +12,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Verify caller is admin
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
@@ -32,26 +31,27 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if caller is admin
+    // Check caller is admin
     const { data: callerRole } = await supabaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", caller.id)
       .eq("role", "admin")
-      .single();
+      .maybeSingle();
 
     if (!callerRole) {
-      return new Response(JSON.stringify({ error: "Apenas administradores podem gerenciar papéis" }), {
+      return new Response(JSON.stringify({ error: "Apenas administradores podem gerenciar usuários" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const url = new URL(req.url);
+    const action = url.searchParams.get("action");
     const method = req.method;
 
+    // GET — list users
     if (method === "GET") {
-      // List all users with profiles and roles
       const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
       if (error) throw error;
 
@@ -75,17 +75,84 @@ Deno.serve(async (req) => {
       });
     }
 
+    // POST ?action=create — create new user with role
+    if (method === "POST" && action === "create") {
+      const { email, password, display_name, role } = await req.json();
+
+      if (!email || !password || !role || !["admin", "organizer"].includes(role)) {
+        return new Response(JSON.stringify({ error: "Dados inválidos. Papel deve ser admin ou organizer." }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (password.length < 6) {
+        return new Response(JSON.stringify({ error: "A senha deve ter pelo menos 6 caracteres" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { display_name: display_name || email },
+      });
+
+      if (createErr) {
+        return new Response(JSON.stringify({ error: createErr.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Assign role
+      const userId = created.user.id;
+      await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
+      const { error: roleErr } = await supabaseAdmin
+        .from("user_roles")
+        .insert({ user_id: userId, role });
+      if (roleErr) throw roleErr;
+
+      return new Response(JSON.stringify({ success: true, user_id: userId }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // POST ?action=delete — delete user
+    if (method === "POST" && action === "delete") {
+      const { user_id } = await req.json();
+      if (!user_id) {
+        return new Response(JSON.stringify({ error: "user_id obrigatório" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (user_id === caller.id) {
+        return new Response(JSON.stringify({ error: "Você não pode excluir a si mesmo" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(user_id);
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // POST (default) — update role
     if (method === "POST") {
       const { user_id, role } = await req.json();
 
-      if (!user_id || !role || !["admin", "viewer"].includes(role)) {
+      if (!user_id || !role || !["admin", "organizer", "viewer"].includes(role)) {
         return new Response(JSON.stringify({ error: "Dados inválidos" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Upsert role
       await supabaseAdmin.from("user_roles").delete().eq("user_id", user_id);
       const { error } = await supabaseAdmin
         .from("user_roles")
