@@ -58,13 +58,39 @@ export type Database = {
           },
         ]
       }
+      competition_dispute_systems: {
+        Row: {
+          competition_id: string
+          created_at: string
+          id: string
+          modalidade: string
+          sistema: string
+        }
+        Insert: {
+          competition_id: string
+          created_at?: string
+          id?: string
+          modalidade: string
+          sistema: string
+        }
+        Update: {
+          competition_id?: string
+          created_at?: string
+          id?: string
+          modalidade?: string
+          sistema?: string
+        }
+        Relationships: []
+      }
       competition_matches: {
         Row: {
           competition_id: string
           created_at: string
+          esporte: string | null
           horario: string | null
           id: string
           local: string | null
+          modalidade: string | null
           participante_a: string
           participante_b: string
           placar_a: number | null
@@ -74,9 +100,11 @@ export type Database = {
         Insert: {
           competition_id: string
           created_at?: string
+          esporte?: string | null
           horario?: string | null
           id?: string
           local?: string | null
+          modalidade?: string | null
           participante_a: string
           participante_b: string
           placar_a?: number | null
@@ -86,9 +114,11 @@ export type Database = {
         Update: {
           competition_id?: string
           created_at?: string
+          esporte?: string | null
           horario?: string | null
           id?: string
           local?: string | null
+          modalidade?: string | null
           participante_a?: string
           participante_b?: string
           placar_a?: number | null
@@ -133,6 +163,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      competition_selected_teams: {
+        Row: {
+          competition_id: string
+          created_at: string
+          id: string
+          modalidade: string
+          organizer_team_id: string
+        }
+        Insert: {
+          competition_id: string
+          created_at?: string
+          id?: string
+          modalidade: string
+          organizer_team_id: string
+        }
+        Update: {
+          competition_id?: string
+          created_at?: string
+          id?: string
+          modalidade?: string
+          organizer_team_id?: string
+        }
+        Relationships: []
       }
       competition_teams: {
         Row: {

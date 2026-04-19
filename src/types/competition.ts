@@ -26,6 +26,7 @@ export interface Equipe {
   genero: 'masculino' | 'feminino' | 'misto';
   integrantes: Atleta[];
   modalidade?: string;
+  organizerTeamId?: string; // referência ao acervo do organizador, se aplicável
 }
 
 export interface Modalidade {
@@ -46,6 +47,8 @@ export interface DisputaData {
   sistema: SistemaDisputa;
   modalidadeSelecionada: string;
   sugestaoManual: string;
+  // sistema por modalidade (Etapa 4 nova)
+  porModalidade: Record<string, SistemaDisputa>;
 }
 
 export interface LogisticaData {
@@ -72,6 +75,8 @@ export interface Jogo {
   placarB?: number;
   horario?: string;
   local?: string;
+  modalidade?: string;
+  esporte?: string;
 }
 
 export interface CompetitionState {

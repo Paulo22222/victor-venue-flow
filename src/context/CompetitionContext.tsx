@@ -7,7 +7,7 @@ const initialState: CompetitionState = {
   currentStep: 0,
   evento: { nome: '', data: '', horario: '', local: '', modalidade: '', organizadores: '', emailOrganizador: '', responsavel: '', emailResponsavel: '' },
   competidores: { tipo: '', modalidades: [], atletas: [], equipes: [] },
-  disputa: { sistema: '', modalidadeSelecionada: '', sugestaoManual: '' },
+  disputa: { sistema: '', modalidadeSelecionada: '', sugestaoManual: '', porModalidade: {} },
   logistica: { modalidadeId: '', local: '', dia: '', horarioInicio: '', espacosDisponiveis: 1, equipeArbitragem: '', coordenadorQuadra: '', outrosEnvolvidos: '', tempoTotalDisponivel: 300, tempoPorPartida: 20, tempoIntervalo: 5, intervaloRefeicao: false },
   jogos: [],
   resultados: {},
