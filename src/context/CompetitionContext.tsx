@@ -108,9 +108,7 @@ export const CompetitionProvider = ({ children }: { children: ReactNode }) => {
     }
     setSaving(true);
     try {
-      // Save current state first
       await saveCompetition(state, competitionId);
-      // Then finalize
       await finalizeCompetition(competitionId);
       setState(prev => ({ ...prev, finalizado: true }));
       toast({ title: 'Evento Finalizado!', description: 'Os resultados agora estão visíveis para todos os usuários.' });
