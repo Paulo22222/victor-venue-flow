@@ -9,10 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
-import { Shield, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Shield, Loader2, Plus, Trash2, User } from 'lucide-react';
 
 interface UserInfo {
-  id: string; email: string; display_name: string; role: string; created_at: string;
+  id: string; email: string; username: string | null; display_name: string; role: string; created_at: string;
 }
 
 const AdminUsers = () => {
@@ -22,7 +22,7 @@ const AdminUsers = () => {
   const [updating, setUpdating] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [newUser, setNewUser] = useState({ email: '', password: '', display_name: '', role: 'organizer' });
+  const [newUser, setNewUser] = useState({ username: '', password: '', display_name: '', role: 'organizer' });
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -49,13 +49,18 @@ const AdminUsers = () => {
   };
 
   const createUser = async () => {
-    if (!newUser.email || !newUser.password) return toast({ title: 'Preencha e-mail e senha', variant: 'destructive' });
+    const u = newUser.username.trim().toLowerCase();
+    if (!u || !newUser.password) return toast({ title: 'Preencha usuário e senha', variant: 'destructive' });
+    if (!/^[a-z0-9_.-]{3,30}$/.test(u)) return toast({ title: 'Username inválido', description: '3-30 caracteres (letras, números, . _ -)', variant: 'destructive' });
     setCreating(true);
     try {
-      const { error } = await supabase.functions.invoke('manage-roles?action=create', { body: newUser });
+      const { data, error } = await supabase.functions.invoke('manage-roles?action=create', {
+        body: { ...newUser, username: u },
+      });
       if (error) throw error;
-      toast({ title: 'Usuário criado!' });
-      setNewUser({ email: '', password: '', display_name: '', role: 'organizer' });
+      if (data?.error) throw new Error(data.error);
+      toast({ title: 'Usuário criado!', description: `Login: ${u}` });
+      setNewUser({ username: '', password: '', display_name: '', role: 'organizer' });
       setCreateOpen(false);
       fetchUsers();
     } catch (err: any) { toast({ title: 'Erro', description: err.message, variant: 'destructive' }); }
@@ -80,7 +85,7 @@ const AdminUsers = () => {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-heading text-2xl font-bold flex items-center gap-2"><Shield className="w-6 h-6 text-primary" /> Usuários</h1>
-          <p className="text-muted-foreground text-sm">Crie contas e gerencie papéis</p>
+          <p className="text-muted-foreground text-sm">Crie contas com nome de usuário e gerencie papéis</p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
@@ -90,12 +95,13 @@ const AdminUsers = () => {
             <DialogHeader><DialogTitle>Criar novo usuário</DialogTitle></DialogHeader>
             <div className="space-y-3">
               <div>
-                <Label className="text-xs">Nome</Label>
-                <Input value={newUser.display_name} onChange={e => setNewUser(s => ({ ...s, display_name: e.target.value }))} />
+                <Label className="text-xs">Nome completo</Label>
+                <Input value={newUser.display_name} onChange={e => setNewUser(s => ({ ...s, display_name: e.target.value }))} placeholder="Ex: João da Silva" />
               </div>
               <div>
-                <Label className="text-xs">E-mail *</Label>
-                <Input type="email" value={newUser.email} onChange={e => setNewUser(s => ({ ...s, email: e.target.value }))} />
+                <Label className="text-xs flex items-center gap-1.5"><User className="w-3 h-3" /> Username (login) *</Label>
+                <Input value={newUser.username} onChange={e => setNewUser(s => ({ ...s, username: e.target.value.toLowerCase() }))} placeholder="joao_silva" className="lowercase" />
+                <p className="text-[10px] text-muted-foreground mt-1">3-30 caracteres. Apenas letras, números, ponto, underline e hífen.</p>
               </div>
               <div>
                 <Label className="text-xs">Senha inicial *</Label>
@@ -131,7 +137,7 @@ const AdminUsers = () => {
                 <thead className="bg-muted">
                   <tr>
                     <th className="p-3 text-left">Nome</th>
-                    <th className="p-3 text-left">E-mail</th>
+                    <th className="p-3 text-left">Usuário</th>
                     <th className="p-3 text-left">Papel</th>
                     <th className="p-3 text-center">Alterar</th>
                     <th className="p-3 text-center">Ação</th>
@@ -141,7 +147,7 @@ const AdminUsers = () => {
                   {users.map(u => (
                     <tr key={u.id} className="border-t hover:bg-muted/50">
                       <td className="p-3 font-medium">{u.display_name}</td>
-                      <td className="p-3 text-muted-foreground">{u.email}</td>
+                      <td className="p-3 text-muted-foreground font-mono text-xs">{u.username || u.email}</td>
                       <td className="p-3"><Badge className={roleColor(u.role)}>{roleLabel(u.role)}</Badge></td>
                       <td className="p-3 text-center">
                         {updating === u.id ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (

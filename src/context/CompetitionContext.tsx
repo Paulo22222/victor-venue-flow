@@ -51,8 +51,23 @@ export const CompetitionProvider = ({ children }: { children: ReactNode }) => {
   const save = async () => {
     setSaving(true);
     try {
-      const id = await saveCompetition(state, competitionId ?? undefined);
+      const { competitionId: id, matchIdMap } = await saveCompetition(state, competitionId ?? undefined);
       setCompetitionId(id);
+      // Reescreve os IDs locais dos jogos com os UUIDs reais do DB para permitir updates ao vivo
+      if (matchIdMap.length > 0) {
+        setState(prev => {
+          const map = new Map(matchIdMap.map(m => [m.localId, m.id]));
+          const novosResultados: typeof prev.resultados = {};
+          Object.entries(prev.resultados).forEach(([k, v]) => {
+            novosResultados[map.get(k) ?? k] = v;
+          });
+          return {
+            ...prev,
+            jogos: prev.jogos.map(j => ({ ...j, id: map.get(j.id) ?? j.id })),
+            resultados: novosResultados,
+          };
+        });
+      }
       toast({ title: 'Competição salva!', description: 'Dados salvos com sucesso.' });
     } catch (err: any) {
       toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
@@ -93,9 +108,7 @@ export const CompetitionProvider = ({ children }: { children: ReactNode }) => {
     }
     setSaving(true);
     try {
-      // Save current state first
       await saveCompetition(state, competitionId);
-      // Then finalize
       await finalizeCompetition(competitionId);
       setState(prev => ({ ...prev, finalizado: true }));
       toast({ title: 'Evento Finalizado!', description: 'Os resultados agora estão visíveis para todos os usuários.' });

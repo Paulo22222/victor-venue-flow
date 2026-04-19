@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useCompetition } from '@/context/CompetitionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronLeft, Save, CheckCircle2, FileText, Trophy, Loader2, Minus, Plus, Radio } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { ChevronLeft, Save, CheckCircle2, FileText, Trophy, Loader2, Minus, Plus, Radio, Flag } from 'lucide-react';
 import { generateCompetitionPDF } from '@/utils/pdfGenerator';
 import { getSportRule, pontosRanking } from '@/utils/sportRules';
 import { updateMatchScore } from '@/services/competitionService';
 import { toast } from '@/hooks/use-toast';
+
+const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
 const Stage6Summary = () => {
   const { state, competitionId, save, saving, finalize, updateResultado, setStep } = useCompetition();
@@ -16,32 +19,30 @@ const Stage6Summary = () => {
   const modalidades = competidores.modalidades;
   const [activeTab, setActiveTab] = useState(modalidades[0]?.nome || 'resumo');
   const [savingScore, setSavingScore] = useState<string | null>(null);
+  const [finalizeRound, setFinalizeRound] = useState<{ mod: string; rodada: number } | null>(null);
 
   const liveUpdate = async (jogoId: string, a: number, b: number) => {
     updateResultado(jogoId, a, b);
-    if (!competitionId) return;
-    const dbId = jogos.find(j => j.id === jogoId)?.id;
-    if (!dbId || dbId.startsWith(`${'FUTSAL'}-`) || dbId.includes('-')) {
-      // se ainda não está salvo no DB com UUID real, não faz update remoto até salvar
-      // (apenas IDs UUID reais funcionam como match.id)
+    if (!competitionId || !isUuid(jogoId)) {
+      toast({ title: 'Salve o evento primeiro', description: 'Para atualizar placares ao vivo, clique em "Salvar evento".', variant: 'destructive' });
+      return;
     }
-    // tenta atualizar — se id não for uuid do DB, falha silenciosamente
     try {
       setSavingScore(jogoId);
-      await updateMatchScore(dbId!, a, b);
-    } catch {
-      // ignora — será sincronizado no próximo Salvar
+      await updateMatchScore(jogoId, a, b);
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar placar', description: err.message, variant: 'destructive' });
     } finally {
       setSavingScore(null);
     }
   };
 
-  const jogosPorMod = (mod: string) => jogos.filter(j => j.modalidade === mod);
+  const jogosPorMod = (mod: string) => jogos.filter(j => (j.modalidade || '').toUpperCase() === mod.toUpperCase());
 
   const rankingPorMod = (mod: string) => {
     const regra = getSportRule(mod);
     const tabela: Record<string, { p: number; v: number; e: number; d: number; sg: number }> = {};
-    const eqs = competidores.equipes.filter(e => e.modalidade === mod);
+    const eqs = competidores.equipes.filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase());
     eqs.forEach(e => { tabela[e.nome] = { p: 0, v: 0, e: 0, d: 0, sg: 0 }; });
     jogosPorMod(mod).forEach(j => {
       const r = resultados[j.id];
@@ -63,6 +64,76 @@ const Stage6Summary = () => {
   const handleFinalize = async () => {
     if (!confirm('Finalizar o evento? Os resultados ficarão visíveis ao público como concluídos.')) return;
     await finalize();
+  };
+
+  // Finalizar uma rodada inteira: para cada jogo sem placar, marca um vencedor padrão (o usuário escolhe por jogo no modal)
+  const FinalizeRoundDialog = () => {
+    const [winners, setWinners] = useState<Record<string, 'A' | 'B'>>({});
+    const ctx = finalizeRound;
+    const matches = useMemo(() => ctx ? jogosPorMod(ctx.mod).filter(j => j.rodada === ctx.rodada && !resultados[j.id]) : [], [ctx]);
+    if (!ctx) return null;
+    const regra = getSportRule(ctx.mod);
+    const handle = async () => {
+      // Para cada jogo sem resultado, decreta vencedor 1x0 (ou conforme regra)
+      const placarVencedor = regra.passoIncremento; // 1 para futsal/handebol; vôlei = 1 set
+      for (const j of matches) {
+        const w = winners[j.id];
+        if (!w) {
+          toast({ title: 'Selecione o vencedor de todos os jogos', variant: 'destructive' });
+          return;
+        }
+        const a = w === 'A' ? placarVencedor : 0;
+        const b = w === 'B' ? placarVencedor : 0;
+        updateResultado(j.id, a, b);
+        if (competitionId && isUuid(j.id)) {
+          try { await updateMatchScore(j.id, a, b); } catch { /* keep going */ }
+        }
+      }
+      toast({ title: `Rodada ${ctx.rodada} finalizada!`, description: `${matches.length} jogo(s) decididos.` });
+      setFinalizeRound(null);
+    };
+    return (
+      <Dialog open={!!ctx} onOpenChange={(o) => !o && setFinalizeRound(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Flag className="w-5 h-5 text-primary" /> Finalizar Rodada {ctx.rodada} — {ctx.mod}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {matches.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Todos os jogos desta rodada já têm placar.</p>
+            ) : matches.map(j => (
+              <div key={j.id} className="rounded-lg border p-3 space-y-2">
+                <p className="text-xs text-muted-foreground">Selecione o vencedor:</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant={winners[j.id] === 'A' ? 'default' : 'outline'}
+                    className={winners[j.id] === 'A' ? 'gradient-primary text-primary-foreground' : ''}
+                    onClick={() => setWinners(s => ({ ...s, [j.id]: 'A' }))}
+                  >
+                    🏆 {j.participanteA}
+                  </Button>
+                  <Button
+                    variant={winners[j.id] === 'B' ? 'default' : 'outline'}
+                    className={winners[j.id] === 'B' ? 'gradient-primary text-primary-foreground' : ''}
+                    onClick={() => setWinners(s => ({ ...s, [j.id]: 'B' }))}
+                  >
+                    🏆 {j.participanteB}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFinalizeRound(null)}>Cancelar</Button>
+            {matches.length > 0 && (
+              <Button className="gradient-primary text-primary-foreground gap-2" onClick={handle}>
+                <CheckCircle2 className="w-4 h-4" /> Confirmar vencedores
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
   };
 
   return (
@@ -87,7 +158,7 @@ const Stage6Summary = () => {
           </Button>
           {!state.finalizado && competitionId && (
             <Button onClick={handleFinalize} className="bg-success text-success-foreground hover:bg-success/90 gap-2">
-              <CheckCircle2 className="w-4 h-4" /> Finalizar
+              <CheckCircle2 className="w-4 h-4" /> Finalizar evento
             </Button>
           )}
         </div>
@@ -191,7 +262,7 @@ const Stage6Summary = () => {
                 </CardContent>
               </Card>
 
-              {/* Chaveamento com placar editável */}
+              {/* Chaveamento com placar editável + finalizar rodada */}
               <Card>
                 <CardContent className="p-5">
                   <h3 className="font-heading font-semibold mb-3 flex items-center gap-2">
@@ -201,42 +272,56 @@ const Stage6Summary = () => {
                     <p className="text-sm text-muted-foreground">Nenhum jogo gerado para esta modalidade.</p>
                   ) : (
                     <div className="space-y-5">
-                      {rkeys.map(r => (
-                        <div key={r}>
-                          <div className="text-xs font-bold text-primary mb-2 tracking-wider">RODADA {r}</div>
-                          <div className="grid gap-2 md:grid-cols-2">
-                            {rounds[r].map(j => {
-                              const cur = resultados[j.id] || { placarA: 0, placarB: 0 };
-                              const decided = !!resultados[j.id];
-                              const winA = decided && cur.placarA > cur.placarB;
-                              const winB = decided && cur.placarB > cur.placarA;
-                              return (
-                                <div key={j.id} className="rounded-lg border bg-card p-3">
-                                  <ScoreRow
-                                    name={j.participanteA}
-                                    value={cur.placarA}
-                                    winner={winA}
-                                    loading={savingScore === j.id}
-                                    onChange={(v) => liveUpdate(j.id, v, cur.placarB)}
-                                    rule={regra}
-                                    disabled={state.finalizado}
-                                  />
-                                  <div className="border-t my-2" />
-                                  <ScoreRow
-                                    name={j.participanteB}
-                                    value={cur.placarB}
-                                    winner={winB}
-                                    loading={savingScore === j.id}
-                                    onChange={(v) => liveUpdate(j.id, cur.placarA, v)}
-                                    rule={regra}
-                                    disabled={state.finalizado}
-                                  />
-                                </div>
-                              );
-                            })}
+                      {rkeys.map(r => {
+                        const pendentes = rounds[r].filter(j => !resultados[j.id]).length;
+                        return (
+                          <div key={r}>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="text-xs font-bold text-primary tracking-wider">RODADA {r}</div>
+                              {!state.finalizado && pendentes > 0 && (
+                                <Button
+                                  size="sm" variant="outline"
+                                  className="h-7 gap-1.5 text-xs"
+                                  onClick={() => setFinalizeRound({ mod: m.nome, rodada: r })}
+                                >
+                                  <Flag className="w-3 h-3" /> Finalizar rodada ({pendentes})
+                                </Button>
+                              )}
+                            </div>
+                            <div className="grid gap-2 md:grid-cols-2">
+                              {rounds[r].map(j => {
+                                const cur = resultados[j.id] || { placarA: 0, placarB: 0 };
+                                const decided = !!resultados[j.id];
+                                const winA = decided && cur.placarA > cur.placarB;
+                                const winB = decided && cur.placarB > cur.placarA;
+                                return (
+                                  <div key={j.id} className="rounded-lg border bg-card p-3">
+                                    <ScoreRow
+                                      name={j.participanteA}
+                                      value={cur.placarA}
+                                      winner={winA}
+                                      loading={savingScore === j.id}
+                                      onChange={(v) => liveUpdate(j.id, v, cur.placarB)}
+                                      rule={regra}
+                                      disabled={state.finalizado}
+                                    />
+                                    <div className="border-t my-2" />
+                                    <ScoreRow
+                                      name={j.participanteB}
+                                      value={cur.placarB}
+                                      winner={winB}
+                                      loading={savingScore === j.id}
+                                      onChange={(v) => liveUpdate(j.id, cur.placarA, v)}
+                                      rule={regra}
+                                      disabled={state.finalizado}
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>
@@ -245,6 +330,8 @@ const Stage6Summary = () => {
           );
         })}
       </Tabs>
+
+      <FinalizeRoundDialog />
 
       <div className="flex justify-between pt-2">
         <Button variant="outline" onClick={() => setStep(5)} className="gap-2">
