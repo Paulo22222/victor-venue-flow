@@ -5,10 +5,10 @@ import { Save, Loader2, ArrowLeft } from 'lucide-react';
 import StepIndicator from '@/components/StepIndicator';
 import Stage1Event from '@/components/stages/Stage1Event';
 import Stage2Categories from '@/components/stages/Stage2Categories';
-import Stage3Competitors from '@/components/stages/Stage2Competitors';
-import Stage4Dispute from '@/components/stages/Stage3Dispute';
-import Stage5Logistics from '@/components/stages/Stage4Logistics';
-import Stage6Reports from '@/components/stages/Stage5Reports';
+import Stage3Teams from '@/components/stages/Stage3Teams';
+import Stage4Dispute from '@/components/stages/Stage4Dispute';
+import Stage5Logistics from '@/components/stages/Stage5Logistics';
+import Stage6Summary from '@/components/stages/Stage6Summary';
 
 const WizardInner = () => {
   const { state, save, saving, setStep } = useCompetition();
@@ -35,10 +35,10 @@ const WizardInner = () => {
       <main className="container mx-auto px-4 pb-12">
         {state.currentStep === 1 && <Stage1Event />}
         {state.currentStep === 2 && <Stage2Categories />}
-        {state.currentStep === 3 && <Stage3Competitors />}
+        {state.currentStep === 3 && <Stage3Teams />}
         {state.currentStep === 4 && <Stage4Dispute />}
         {state.currentStep === 5 && <Stage5Logistics />}
-        {state.currentStep === 6 && <Stage6Reports />}
+        {state.currentStep === 6 && <Stage6Summary />}
       </main>
     </div>
   );
