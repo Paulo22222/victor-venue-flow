@@ -58,10 +58,11 @@ const PublicEvent = () => {
   }, [matches, activeMod]);
 
   const ranking = useMemo(() => {
-    const regra = getSportRule(activeMod === 'all' ? undefined : activeMod);
     const pts: Record<string, { p: number; v: number; e: number; d: number; gp: number; gc: number }> = {};
     const ensure = (n: string) => { if (!pts[n]) pts[n] = { p: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }; };
+    // Filtra estritamente por modalidade para não misturar esportes na classificação
     filtered.forEach(m => {
+      if (activeMod !== 'all' && (m.modalidade || '').toUpperCase() !== activeMod.toUpperCase()) return;
       ensure(m.participante_a); ensure(m.participante_b);
       if (m.placar_a != null && m.placar_b != null) {
         pts[m.participante_a].gp += m.placar_a; pts[m.participante_a].gc += m.placar_b;
