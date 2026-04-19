@@ -20,7 +20,12 @@ export async function listCompetitions(): Promise<SavedCompetition[]> {
   return (data ?? []).map(d => ({ ...d, finalizado: d.finalizado ?? false }));
 }
 
-export async function saveCompetition(state: CompetitionState, existingId?: string): Promise<string> {
+export interface SaveResult {
+  competitionId: string;
+  matchIdMap: { id: string; localId: string }[];
+}
+
+export async function saveCompetition(state: CompetitionState, existingId?: string): Promise<SaveResult> {
   const competitionRow = {
     nome: state.evento.nome,
     data: state.evento.data,
@@ -146,25 +151,33 @@ export async function saveCompetition(state: CompetitionState, existingId?: stri
     );
   }
 
-  // Jogos
+  // Jogos — insere e devolve UUIDs reais (mantendo ordem)
+  let savedMatches: { id: string; localId: string }[] = [];
   if (state.jogos.length > 0) {
-    await supabase.from('competition_matches').insert(
-      state.jogos.map(j => ({
-        competition_id: competitionId,
-        rodada: j.rodada,
-        participante_a: j.participanteA,
-        participante_b: j.participanteB,
-        placar_a: state.resultados[j.id]?.placarA ?? j.placarA ?? null,
-        placar_b: state.resultados[j.id]?.placarB ?? j.placarB ?? null,
-        horario: j.horario || null,
-        local: j.local || null,
-        modalidade: j.modalidade || null,
-        esporte: j.esporte || j.modalidade || null,
-      }))
-    );
+    const payload = state.jogos.map(j => ({
+      competition_id: competitionId,
+      rodada: j.rodada,
+      participante_a: j.participanteA,
+      participante_b: j.participanteB,
+      placar_a: state.resultados[j.id]?.placarA ?? j.placarA ?? null,
+      placar_b: state.resultados[j.id]?.placarB ?? j.placarB ?? null,
+      horario: j.horario || null,
+      local: j.local || null,
+      modalidade: j.modalidade || null,
+      esporte: j.esporte || j.modalidade || null,
+    }));
+    const { data: inserted, error: matchErr } = await supabase
+      .from('competition_matches')
+      .insert(payload)
+      .select('id');
+    if (matchErr) throw matchErr;
+    savedMatches = (inserted ?? []).map((row, idx) => ({
+      id: row.id,
+      localId: state.jogos[idx].id,
+    }));
   }
 
-  return competitionId;
+  return { competitionId, matchIdMap: savedMatches };
 }
 
 export async function loadCompetition(id: string): Promise<CompetitionState> {
