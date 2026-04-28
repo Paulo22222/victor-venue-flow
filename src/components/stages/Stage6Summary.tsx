@@ -228,52 +228,60 @@ const Stage6Summary = () => {
         </TabsContent>
 
         {modalidades.map(m => {
-          const ranking = rankingPorMod(m.nome);
+          const generos = generosNaMod(m.nome);
           const rounds = jogosPorMod(m.nome).reduce<Record<number, typeof jogos>>((acc, j) => {
             (acc[j.rodada] ||= []).push(j); return acc;
           }, {});
           const rkeys = Object.keys(rounds).map(Number).sort((a, b) => a - b);
           const regra = getSportRule(m.nome);
+          const labelGenero = (g: string) => g === 'masculino' ? 'Masculino' : g === 'feminino' ? 'Feminino' : 'Misto';
           return (
             <TabsContent key={m.nome} value={m.nome} className="mt-4 space-y-6">
-              {/* Classificação */}
-              <Card>
-                <CardContent className="p-5">
-                  <h3 className="font-heading font-semibold mb-3 flex items-center gap-2">
-                    <Trophy className="w-4 h-4 text-primary" /> Classificação — {m.nome}
-                  </h3>
-                  <div className="overflow-x-auto rounded-lg border">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted">
-                        <tr>
-                          <th className="p-2 text-left">#</th>
-                          <th className="p-2 text-left">Equipe</th>
-                          <th className="p-2 text-center">P</th>
-                          <th className="p-2 text-center">V</th>
-                          <th className="p-2 text-center">E</th>
-                          <th className="p-2 text-center">D</th>
-                          <th className="p-2 text-center">SG</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {ranking.length === 0 ? (
-                          <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">Sem placares lançados.</td></tr>
-                        ) : ranking.map(([nome, s], i) => (
-                          <tr key={nome} className={`border-t ${i < 3 ? 'font-semibold' : ''}`}>
-                            <td className="p-2">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`}</td>
-                            <td className="p-2">{nome}</td>
-                            <td className="p-2 text-center font-bold text-primary">{s.p}</td>
-                            <td className="p-2 text-center">{s.v}</td>
-                            <td className="p-2 text-center">{s.e}</td>
-                            <td className="p-2 text-center">{s.d}</td>
-                            <td className="p-2 text-center">{s.sg > 0 ? `+${s.sg}` : s.sg}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Classificação separada por gênero */}
+              {generos.length === 0 ? (
+                <Card><CardContent className="p-5 text-sm text-muted-foreground">Nenhuma equipe nesta modalidade.</CardContent></Card>
+              ) : generos.map(g => {
+                const ranking = rankingPorModEGenero(m.nome, g);
+                return (
+                  <Card key={g}>
+                    <CardContent className="p-5">
+                      <h3 className="font-heading font-semibold mb-3 flex items-center gap-2">
+                        <Trophy className="w-4 h-4 text-primary" /> Classificação — {m.nome} ({labelGenero(g)})
+                      </h3>
+                      <div className="overflow-x-auto rounded-lg border">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted">
+                            <tr>
+                              <th className="p-2 text-left">Posição</th>
+                              <th className="p-2 text-left">Equipe</th>
+                              <th className="p-2 text-center">P</th>
+                              <th className="p-2 text-center">V</th>
+                              <th className="p-2 text-center">E</th>
+                              <th className="p-2 text-center">D</th>
+                              <th className="p-2 text-center">SG</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {ranking.length === 0 ? (
+                              <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">Sem placares lançados.</td></tr>
+                            ) : ranking.map(([nome, s], i) => (
+                              <tr key={nome} className={`border-t ${i < 3 ? 'font-semibold' : ''}`}>
+                                <td className="p-2">{i + 1}º LUGAR</td>
+                                <td className="p-2">{nome}</td>
+                                <td className="p-2 text-center font-bold text-primary">{s.p}</td>
+                                <td className="p-2 text-center">{s.v}</td>
+                                <td className="p-2 text-center">{s.e}</td>
+                                <td className="p-2 text-center">{s.d}</td>
+                                <td className="p-2 text-center">{s.sg > 0 ? `+${s.sg}` : s.sg}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
 
               {/* Chaveamento com placar editável + finalizar rodada */}
               <Card>
