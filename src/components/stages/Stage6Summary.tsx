@@ -22,11 +22,11 @@ const Stage6Summary = () => {
   const [finalizeRound, setFinalizeRound] = useState<{ mod: string; rodada: number } | null>(null);
 
   const liveUpdate = async (jogoId: string, a: number, b: number) => {
-    updateResultado(jogoId, a, b);
     if (!competitionId || !isUuid(jogoId)) {
-      toast({ title: 'Salve o evento primeiro', description: 'Para atualizar placares ao vivo, clique em "Salvar evento".', variant: 'destructive' });
+      toast({ title: 'Salve o evento primeiro', description: 'As alterações no placar só podem ser feitas após clicar em "Salvar evento".', variant: 'destructive' });
       return;
     }
+    updateResultado(jogoId, a, b);
     try {
       setSavingScore(jogoId);
       await updateMatchScore(jogoId, a, b);
@@ -110,14 +110,14 @@ const Stage6Summary = () => {
                     className={winners[j.id] === 'A' ? 'gradient-primary text-primary-foreground' : ''}
                     onClick={() => setWinners(s => ({ ...s, [j.id]: 'A' }))}
                   >
-                    🏆 {j.participanteA}
+                    {j.participanteA}
                   </Button>
                   <Button
                     variant={winners[j.id] === 'B' ? 'default' : 'outline'}
                     className={winners[j.id] === 'B' ? 'gradient-primary text-primary-foreground' : ''}
                     onClick={() => setWinners(s => ({ ...s, [j.id]: 'B' }))}
                   >
-                    🏆 {j.participanteB}
+                    {j.participanteB}
                   </Button>
                 </div>
               </div>
@@ -186,7 +186,7 @@ const Stage6Summary = () => {
           <TabsTrigger value="resumo">Resumo</TabsTrigger>
           {modalidades.map(m => (
             <TabsTrigger key={m.nome} value={m.nome} className="gap-2">
-              {getSportRule(m.nome).emoji} {m.nome}
+              {m.nome}
               <Badge variant="secondary" className="h-5">{jogosPorMod(m.nome).length}</Badge>
             </TabsTrigger>
           ))}
@@ -205,7 +205,7 @@ const Stage6Summary = () => {
               <div className="space-y-2 text-sm">
                 {modalidades.map(m => (
                   <div key={m.nome} className="flex items-center justify-between border-b border-border pb-2 last:border-0">
-                    <span>{getSportRule(m.nome).emoji} {m.nome}</span>
+                    <span>{m.nome}</span>
                     <Badge variant="outline" className="capitalize">{disputa.porModalidade?.[m.nome] || '—'}</Badge>
                   </div>
                 ))}
