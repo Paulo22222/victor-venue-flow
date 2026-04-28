@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import AppLayout, { NavItem } from '@/components/layout/AppLayout';
 import { LayoutDashboard, Trophy, Users, Shield } from 'lucide-react';
+import { CompetitionProvider } from '@/context/CompetitionContext';
 
 const items: NavItem[] = [
   { title: 'Painel', url: '/admin/dashboard', icon: LayoutDashboard },
@@ -10,9 +11,11 @@ const items: NavItem[] = [
 ];
 
 const AdminLayout = () => (
-  <AppLayout items={items} groupLabel="Administração" roleLabel="Administrador">
-    <Outlet />
-  </AppLayout>
+  <CompetitionProvider>
+    <AppLayout items={items} groupLabel="Administração" roleLabel="Administrador">
+      <Outlet />
+    </AppLayout>
+  </CompetitionProvider>
 );
 
 export default AdminLayout;

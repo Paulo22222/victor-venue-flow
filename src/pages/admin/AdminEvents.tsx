@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Trophy, Plus, Trash2, FolderOpen } from 'lucide-react';
+import { Loader2, Trophy, Plus, Trash2, FolderOpen, Eye } from 'lucide-react';
 import { listCompetitions, SavedCompetition } from '@/services/competitionService';
-import { useCompetition, CompetitionProvider } from '@/context/CompetitionContext';
+import { useCompetition } from '@/context/CompetitionContext';
 
-const AdminEventsInner = () => {
-  const { setStep, load, remove, resetState } = useCompetition();
+const AdminEvents = () => {
+  const { setStep, remove, resetState } = useCompetition();
+  const navigate = useNavigate();
   const [list, setList] = useState<SavedCompetition[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -19,8 +20,8 @@ const AdminEventsInner = () => {
   };
   useEffect(() => { refresh(); }, []);
 
-  const handleNew = () => { resetState(); setStep(1); };
-  const handleLoad = async (id: string) => { await load(id); };
+  const handleNew = () => { resetState(); setStep(1); navigate('/admin/wizard'); };
+  const handleOpen = (id: string) => { navigate(`/admin/wizard?id=${id}`); };
   const handleDelete = async (id: string) => { if (!confirm('Excluir esta competição?')) return; await remove(id); refresh(); };
 
   return (
@@ -30,9 +31,7 @@ const AdminEventsInner = () => {
           <h1 className="font-heading text-2xl font-bold flex items-center gap-2"><Trophy className="w-6 h-6 text-primary" /> Eventos</h1>
           <p className="text-muted-foreground text-sm">Crie e gerencie suas competições</p>
         </div>
-        <Link to="/admin/wizard" onClick={handleNew}>
-          <Button className="gradient-primary text-primary-foreground gap-2"><Plus className="w-4 h-4" /> Novo evento</Button>
-        </Link>
+        <Button onClick={handleNew} className="gradient-primary text-primary-foreground gap-2"><Plus className="w-4 h-4" /> Novo evento</Button>
       </div>
 
       <Card>
@@ -52,10 +51,15 @@ const AdminEventsInner = () => {
                       {c.data && <span>{c.data}</span>}
                     </div>
                     <div className="flex gap-2">
-                      <Link to="/admin/wizard" className="flex-1">
-                        <Button size="sm" variant="outline" className="w-full" onClick={() => handleLoad(c.id)}>Abrir</Button>
+                      <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={() => handleOpen(c.id)}>
+                        <Eye className="w-3.5 h-3.5" /> Abrir
+                      </Button>
+                      <Link to={`/evento/${c.id}`} target="_blank">
+                        <Button size="sm" variant="ghost" title="Ver página pública">
+                          <Trophy className="w-3.5 h-3.5" />
+                        </Button>
                       </Link>
-                      <Button size="sm" variant="ghost" onClick={() => handleDelete(c.id)}>
+                      <Button size="sm" variant="ghost" onClick={() => handleDelete(c.id)} title="Excluir">
                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
                       </Button>
                     </div>
@@ -68,11 +72,5 @@ const AdminEventsInner = () => {
     </div>
   );
 };
-
-const AdminEvents = () => (
-  <CompetitionProvider>
-    <AdminEventsInner />
-  </CompetitionProvider>
-);
 
 export default AdminEvents;
