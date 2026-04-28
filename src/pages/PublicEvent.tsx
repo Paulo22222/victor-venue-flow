@@ -19,22 +19,41 @@ interface Match {
   local: string | null; modalidade: string | null; esporte: string | null;
 }
 interface Modality { id: string; nome: string; }
+// nome+modalidade -> genero
+type GenderMap = Record<string, string>;
+
+const keyEq = (nome: string, mod: string) => `${nome}__${mod.toUpperCase()}`;
 
 const PublicEvent = () => {
   const { id } = useParams<{ id: string }>();
   const [comp, setComp] = useState<Competition | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
   const [modalities, setModalities] = useState<Modality[]>([]);
+  const [genderMap, setGenderMap] = useState<GenderMap>({});
   const [loading, setLoading] = useState(true);
   const [activeMod, setActiveMod] = useState<string>('all');
 
   const fetchAll = async () => {
     if (!id) return;
-    const [{ data: c }, { data: m }, { data: mods }] = await Promise.all([
+    const [{ data: c }, { data: m }, { data: mods }, { data: selected }] = await Promise.all([
       supabase.from('competitions').select('*').eq('id', id).maybeSingle(),
       supabase.from('competition_matches').select('*').eq('competition_id', id).order('rodada'),
       supabase.from('competition_modalities').select('id,nome').eq('competition_id', id),
+      supabase.from('competition_selected_teams').select('organizer_team_id, modalidade').eq('competition_id', id),
     ]);
+    // Buscar gênero das equipes selecionadas via organizer_teams
+    const gmap: GenderMap = {};
+    if (selected && selected.length) {
+      const ids = Array.from(new Set(selected.map((s: any) => s.organizer_team_id)));
+      const { data: teams } = await supabase.from('organizer_teams').select('id, nome, genero').in('id', ids);
+      const byId: Record<string, { nome: string; genero: string | null }> = {};
+      (teams ?? []).forEach((t: any) => { byId[t.id] = { nome: t.nome, genero: t.genero }; });
+      selected.forEach((s: any) => {
+        const t = byId[s.organizer_team_id];
+        if (t) gmap[keyEq(t.nome, s.modalidade)] = t.genero || 'misto';
+      });
+    }
+    setGenderMap(gmap);
     setComp(c as Competition | null);
     setMatches((m ?? []) as Match[]);
     setModalities((mods ?? []) as Modality[]);
@@ -57,17 +76,22 @@ const PublicEvent = () => {
     return matches.filter(m => (m.modalidade || '').toUpperCase() === activeMod.toUpperCase());
   }, [matches, activeMod]);
 
-  const ranking = useMemo(() => {
+  const generoDe = (nome: string, mod: string) => genderMap[keyEq(nome, mod)] || 'misto';
+
+  const rankingPorGenero = (genero: string) => {
     const pts: Record<string, { p: number; v: number; e: number; d: number; gp: number; gc: number }> = {};
     const ensure = (n: string) => { if (!pts[n]) pts[n] = { p: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }; };
-    // Filtra estritamente por modalidade para não misturar esportes na classificação
     filtered.forEach(m => {
+      const mod = m.modalidade || activeMod;
       if (activeMod !== 'all' && (m.modalidade || '').toUpperCase() !== activeMod.toUpperCase()) return;
+      const gA = generoDe(m.participante_a, mod);
+      const gB = generoDe(m.participante_b, mod);
+      if (gA !== genero || gB !== genero) return;
       ensure(m.participante_a); ensure(m.participante_b);
       if (m.placar_a != null && m.placar_b != null) {
         pts[m.participante_a].gp += m.placar_a; pts[m.participante_a].gc += m.placar_b;
         pts[m.participante_b].gp += m.placar_b; pts[m.participante_b].gc += m.placar_a;
-        const matchRule = getSportRule(m.modalidade || activeMod);
+        const matchRule = getSportRule(mod);
         const { a, b } = pontosRanking(m.placar_a, m.placar_b, matchRule);
         pts[m.participante_a].p += a; pts[m.participante_b].p += b;
         if (m.placar_a > m.placar_b) { pts[m.participante_a].v++; pts[m.participante_b].d++; }
@@ -76,12 +100,25 @@ const PublicEvent = () => {
       }
     });
     return Object.entries(pts).sort((a, b) => b[1].p - a[1].p || (b[1].gp - b[1].gc) - (a[1].gp - a[1].gc));
-  }, [filtered, activeMod]);
+  };
+
+  const generosPresentes = useMemo(() => {
+    const set = new Set<string>();
+    filtered.forEach(m => {
+      const mod = m.modalidade || activeMod;
+      const gA = generoDe(m.participante_a, mod);
+      const gB = generoDe(m.participante_b, mod);
+      // Adiciona apenas se ambos os participantes forem do mesmo gênero (jogos válidos para ranking)
+      if (gA === gB) set.add(gA);
+    });
+    return Array.from(set);
+  }, [filtered, genderMap, activeMod]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   if (!comp) return <div className="min-h-screen flex flex-col items-center justify-center gap-4"><p>Evento não encontrado.</p><Link to="/"><Button>Voltar</Button></Link></div>;
 
   const live = !comp.finalizado;
+  const labelGenero = (g: string) => g === 'masculino' ? 'Masculino' : g === 'feminino' ? 'Feminino' : 'Misto';
 
   return (
     <div className="min-h-screen bg-background">
@@ -118,13 +155,21 @@ const PublicEvent = () => {
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="all">Todas</TabsTrigger>
             {modalities.map(m => (
-              <TabsTrigger key={m.id} value={m.nome} className="gap-1.5">
-                <span>{getSportRule(m.nome).emoji}</span> {m.nome}
-              </TabsTrigger>
+              <TabsTrigger key={m.id} value={m.nome}>{m.nome}</TabsTrigger>
             ))}
           </TabsList>
           <TabsContent value={activeMod} className="mt-6 space-y-6">
-            <RankingTable ranking={ranking} />
+            {generosPresentes.length === 0 ? (
+              <RankingTable titulo="Classificação" ranking={[]} />
+            ) : (
+              generosPresentes.map(g => (
+                <RankingTable
+                  key={g}
+                  titulo={`Classificação — ${labelGenero(g)}`}
+                  ranking={rankingPorGenero(g)}
+                />
+              ))
+            )}
             <Bracket matches={filtered} />
           </TabsContent>
         </Tabs>
@@ -133,16 +178,16 @@ const PublicEvent = () => {
   );
 };
 
-const RankingTable = ({ ranking }: { ranking: [string, any][] }) => (
+const RankingTable = ({ titulo, ranking }: { titulo: string; ranking: [string, any][] }) => (
   <Card>
-    <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Trophy className="w-5 h-5 text-primary" /> Classificação</CardTitle></CardHeader>
+    <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Trophy className="w-5 h-5 text-primary" /> {titulo}</CardTitle></CardHeader>
     <CardContent>
       {ranking.length === 0 ? <p className="text-sm text-muted-foreground">Sem placares lançados ainda.</p> : (
         <div className="rounded-lg border overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="p-2 text-left">#</th><th className="p-2 text-left">Equipe</th>
+                <th className="p-2 text-left">Posição</th><th className="p-2 text-left">Equipe</th>
                 <th className="p-2 text-center">P</th><th className="p-2 text-center">V</th>
                 <th className="p-2 text-center">E</th><th className="p-2 text-center">D</th>
                 <th className="p-2 text-center">SG</th>
@@ -151,7 +196,7 @@ const RankingTable = ({ ranking }: { ranking: [string, any][] }) => (
             <tbody>
               {ranking.map(([nome, s], i) => (
                 <tr key={nome} className={`border-t ${i < 3 ? 'font-semibold' : ''}`}>
-                  <td className="p-2">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`}</td>
+                  <td className="p-2">{i + 1}º LUGAR</td>
                   <td className="p-2">{nome}</td>
                   <td className="p-2 text-center font-bold text-primary">{s.p}</td>
                   <td className="p-2 text-center">{s.v}</td>

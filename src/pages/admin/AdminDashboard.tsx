@@ -30,14 +30,6 @@ const AdminDashboard = () => {
         <StatCard icon={ListChecks} label="Finalizados" value={stats.finished} />
         <StatCard icon={Users} label="Equipes (organizadores)" value={stats.organizerTeams} />
       </div>
-      <Card>
-        <CardHeader><CardTitle className="text-base">Comece por aqui</CardTitle></CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>• <strong>Eventos</strong> — crie e gerencie competições passo a passo.</p>
-          <p>• <strong>Usuários</strong> — crie contas de organizador e administrador, defina papéis.</p>
-          <p>• <strong>Equipes dos organizadores</strong> — visualize o acervo cadastrado por cada organizador.</p>
-        </CardContent>
-      </Card>
     </div>
   );
 };

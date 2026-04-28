@@ -22,11 +22,11 @@ const Stage6Summary = () => {
   const [finalizeRound, setFinalizeRound] = useState<{ mod: string; rodada: number } | null>(null);
 
   const liveUpdate = async (jogoId: string, a: number, b: number) => {
-    updateResultado(jogoId, a, b);
     if (!competitionId || !isUuid(jogoId)) {
-      toast({ title: 'Salve o evento primeiro', description: 'Para atualizar placares ao vivo, clique em "Salvar evento".', variant: 'destructive' });
+      toast({ title: 'Salve o evento primeiro', description: 'As alterações no placar só podem ser feitas após clicar em "Salvar evento".', variant: 'destructive' });
       return;
     }
+    updateResultado(jogoId, a, b);
     try {
       setSavingScore(jogoId);
       await updateMatchScore(jogoId, a, b);
@@ -39,17 +39,22 @@ const Stage6Summary = () => {
 
   const jogosPorMod = (mod: string) => jogos.filter(j => (j.modalidade || '').toUpperCase() === mod.toUpperCase());
 
-  const rankingPorMod = (mod: string) => {
+  const generoEquipe = (nome: string, mod: string): string => {
+    const eq = competidores.equipes.find(e => e.nome === nome && (e.modalidade || '').toUpperCase() === mod.toUpperCase());
+    return (eq?.genero as string) || 'misto';
+  };
+
+  const rankingPorModEGenero = (mod: string, genero: string) => {
     const regra = getSportRule(mod);
     const tabela: Record<string, { p: number; v: number; e: number; d: number; sg: number }> = {};
-    const eqs = competidores.equipes.filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase());
+    const eqs = competidores.equipes.filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase() && (e.genero || 'misto') === genero);
     eqs.forEach(e => { tabela[e.nome] = { p: 0, v: 0, e: 0, d: 0, sg: 0 }; });
     jogosPorMod(mod).forEach(j => {
       const r = resultados[j.id];
       if (!r) return;
+      // Considerar apenas jogos onde ambas equipes pertencem ao gênero
+      if (!tabela[j.participanteA] || !tabela[j.participanteB]) return;
       const { a, b } = pontosRanking(r.placarA, r.placarB, regra);
-      if (!tabela[j.participanteA]) tabela[j.participanteA] = { p: 0, v: 0, e: 0, d: 0, sg: 0 };
-      if (!tabela[j.participanteB]) tabela[j.participanteB] = { p: 0, v: 0, e: 0, d: 0, sg: 0 };
       tabela[j.participanteA].p += a;
       tabela[j.participanteB].p += b;
       tabela[j.participanteA].sg += (r.placarA - r.placarB);
@@ -59,6 +64,14 @@ const Stage6Summary = () => {
       else { tabela[j.participanteA].e++; tabela[j.participanteB].e++; }
     });
     return Object.entries(tabela).sort((a, b) => b[1].p - a[1].p || b[1].sg - a[1].sg);
+  };
+
+  const generosNaMod = (mod: string): string[] => {
+    const set = new Set<string>();
+    competidores.equipes
+      .filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase())
+      .forEach(e => set.add(e.genero || 'misto'));
+    return Array.from(set);
   };
 
   const handleFinalize = async () => {
@@ -110,14 +123,14 @@ const Stage6Summary = () => {
                     className={winners[j.id] === 'A' ? 'gradient-primary text-primary-foreground' : ''}
                     onClick={() => setWinners(s => ({ ...s, [j.id]: 'A' }))}
                   >
-                    🏆 {j.participanteA}
+                    {j.participanteA}
                   </Button>
                   <Button
                     variant={winners[j.id] === 'B' ? 'default' : 'outline'}
                     className={winners[j.id] === 'B' ? 'gradient-primary text-primary-foreground' : ''}
                     onClick={() => setWinners(s => ({ ...s, [j.id]: 'B' }))}
                   >
-                    🏆 {j.participanteB}
+                    {j.participanteB}
                   </Button>
                 </div>
               </div>
@@ -186,7 +199,7 @@ const Stage6Summary = () => {
           <TabsTrigger value="resumo">Resumo</TabsTrigger>
           {modalidades.map(m => (
             <TabsTrigger key={m.nome} value={m.nome} className="gap-2">
-              {getSportRule(m.nome).emoji} {m.nome}
+              {m.nome}
               <Badge variant="secondary" className="h-5">{jogosPorMod(m.nome).length}</Badge>
             </TabsTrigger>
           ))}
@@ -205,7 +218,7 @@ const Stage6Summary = () => {
               <div className="space-y-2 text-sm">
                 {modalidades.map(m => (
                   <div key={m.nome} className="flex items-center justify-between border-b border-border pb-2 last:border-0">
-                    <span>{getSportRule(m.nome).emoji} {m.nome}</span>
+                    <span>{m.nome}</span>
                     <Badge variant="outline" className="capitalize">{disputa.porModalidade?.[m.nome] || '—'}</Badge>
                   </div>
                 ))}
@@ -215,52 +228,60 @@ const Stage6Summary = () => {
         </TabsContent>
 
         {modalidades.map(m => {
-          const ranking = rankingPorMod(m.nome);
+          const generos = generosNaMod(m.nome);
           const rounds = jogosPorMod(m.nome).reduce<Record<number, typeof jogos>>((acc, j) => {
             (acc[j.rodada] ||= []).push(j); return acc;
           }, {});
           const rkeys = Object.keys(rounds).map(Number).sort((a, b) => a - b);
           const regra = getSportRule(m.nome);
+          const labelGenero = (g: string) => g === 'masculino' ? 'Masculino' : g === 'feminino' ? 'Feminino' : 'Misto';
           return (
             <TabsContent key={m.nome} value={m.nome} className="mt-4 space-y-6">
-              {/* Classificação */}
-              <Card>
-                <CardContent className="p-5">
-                  <h3 className="font-heading font-semibold mb-3 flex items-center gap-2">
-                    <Trophy className="w-4 h-4 text-primary" /> Classificação — {m.nome}
-                  </h3>
-                  <div className="overflow-x-auto rounded-lg border">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted">
-                        <tr>
-                          <th className="p-2 text-left">#</th>
-                          <th className="p-2 text-left">Equipe</th>
-                          <th className="p-2 text-center">P</th>
-                          <th className="p-2 text-center">V</th>
-                          <th className="p-2 text-center">E</th>
-                          <th className="p-2 text-center">D</th>
-                          <th className="p-2 text-center">SG</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {ranking.length === 0 ? (
-                          <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">Sem placares lançados.</td></tr>
-                        ) : ranking.map(([nome, s], i) => (
-                          <tr key={nome} className={`border-t ${i < 3 ? 'font-semibold' : ''}`}>
-                            <td className="p-2">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`}</td>
-                            <td className="p-2">{nome}</td>
-                            <td className="p-2 text-center font-bold text-primary">{s.p}</td>
-                            <td className="p-2 text-center">{s.v}</td>
-                            <td className="p-2 text-center">{s.e}</td>
-                            <td className="p-2 text-center">{s.d}</td>
-                            <td className="p-2 text-center">{s.sg > 0 ? `+${s.sg}` : s.sg}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Classificação separada por gênero */}
+              {generos.length === 0 ? (
+                <Card><CardContent className="p-5 text-sm text-muted-foreground">Nenhuma equipe nesta modalidade.</CardContent></Card>
+              ) : generos.map(g => {
+                const ranking = rankingPorModEGenero(m.nome, g);
+                return (
+                  <Card key={g}>
+                    <CardContent className="p-5">
+                      <h3 className="font-heading font-semibold mb-3 flex items-center gap-2">
+                        <Trophy className="w-4 h-4 text-primary" /> Classificação — {m.nome} ({labelGenero(g)})
+                      </h3>
+                      <div className="overflow-x-auto rounded-lg border">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted">
+                            <tr>
+                              <th className="p-2 text-left">Posição</th>
+                              <th className="p-2 text-left">Equipe</th>
+                              <th className="p-2 text-center">P</th>
+                              <th className="p-2 text-center">V</th>
+                              <th className="p-2 text-center">E</th>
+                              <th className="p-2 text-center">D</th>
+                              <th className="p-2 text-center">SG</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {ranking.length === 0 ? (
+                              <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">Sem placares lançados.</td></tr>
+                            ) : ranking.map(([nome, s], i) => (
+                              <tr key={nome} className={`border-t ${i < 3 ? 'font-semibold' : ''}`}>
+                                <td className="p-2">{i + 1}º LUGAR</td>
+                                <td className="p-2">{nome}</td>
+                                <td className="p-2 text-center font-bold text-primary">{s.p}</td>
+                                <td className="p-2 text-center">{s.v}</td>
+                                <td className="p-2 text-center">{s.e}</td>
+                                <td className="p-2 text-center">{s.d}</td>
+                                <td className="p-2 text-center">{s.sg > 0 ? `+${s.sg}` : s.sg}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
 
               {/* Chaveamento com placar editável + finalizar rodada */}
               <Card>
