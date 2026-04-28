@@ -3,13 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ChevronLeft, ChevronRight, ListChecks, Check } from 'lucide-react';
 import { Modalidade } from '@/types/competition';
-import { SPORT_RULES } from '@/utils/sportRules';
+import { MODALIDADES_DISPONIVEIS } from '@/utils/sportRules';
 
-const CATEGORIAS = [
-  { id: 'FUTSAL', desc: 'Futebol de salão', emoji: '⚽' },
-  { id: 'VÔLEI', desc: 'Voleibol', emoji: '🏐' },
-  { id: 'HANDEBOL', desc: 'Handebol', emoji: '🤾' },
-];
+const CATEGORIAS = MODALIDADES_DISPONIVEIS;
 
 const Stage2Categories = () => {
   const { state, updateCompetidores, setStep } = useCompetition();
@@ -36,7 +32,7 @@ const Stage2Categories = () => {
         <p className="text-muted-foreground mt-1">Selecione as modalidades esportivas que serão disputadas.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {CATEGORIAS.map(cat => {
           const isSel = selected.includes(cat.id);
           return (
@@ -52,7 +48,6 @@ const Stage2Categories = () => {
                   <Check className="w-3.5 h-3.5" />
                 </div>
               )}
-              <div className="text-3xl mb-2">{cat.emoji}</div>
               <div className="font-heading font-semibold text-lg">{cat.id}</div>
               <div className="text-xs text-muted-foreground">{cat.desc}</div>
             </button>
