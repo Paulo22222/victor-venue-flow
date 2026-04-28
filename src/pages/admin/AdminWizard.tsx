@@ -1,5 +1,6 @@
-import { Link } from 'react-router-dom';
-import { CompetitionProvider, useCompetition } from '@/context/CompetitionContext';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { useCompetition } from '@/context/CompetitionContext';
 import { Button } from '@/components/ui/button';
 import { Save, Loader2, ArrowLeft } from 'lucide-react';
 import StepIndicator from '@/components/StepIndicator';
@@ -10,8 +11,27 @@ import Stage4Dispute from '@/components/stages/Stage4Dispute';
 import Stage5Logistics from '@/components/stages/Stage5Logistics';
 import Stage6Summary from '@/components/stages/Stage6Summary';
 
-const WizardInner = () => {
-  const { state, save, saving, setStep } = useCompetition();
+const AdminWizard = () => {
+  const { state, save, saving, setStep, load, competitionId, resetState } = useCompetition();
+  const [params] = useSearchParams();
+  const idParam = params.get('id');
+  const loadedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (idParam) {
+      if (loadedRef.current !== idParam && competitionId !== idParam) {
+        loadedRef.current = idParam;
+        load(idParam).then(() => setStep(6));
+      }
+    } else {
+      // No id param: if no current competition, ensure clean state
+      if (!competitionId && state.currentStep === 0) {
+        // nothing
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idParam]);
+
   return (
     <div className="min-h-full bg-background">
       <div className="border-b border-border bg-card/80 backdrop-blur sticky top-0 z-[5]">
@@ -43,11 +63,5 @@ const WizardInner = () => {
     </div>
   );
 };
-
-const AdminWizard = () => (
-  <CompetitionProvider>
-    <WizardInner />
-  </CompetitionProvider>
-);
 
 export default AdminWizard;
