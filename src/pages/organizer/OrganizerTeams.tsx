@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from '@/hooks/use-toast';
 import { Plus, Trash2, Users, Loader2, ChevronRight, UserPlus } from 'lucide-react';
 
-const MODALIDADES = ['FUTSAL', 'VÔLEI', 'HANDEBOL'];
+import { MODALIDADES_DISPONIVEIS } from '@/utils/sportRules';
+const MODALIDADES = MODALIDADES_DISPONIVEIS.map(m => m.id);
 
 interface Team {
   id: string;
@@ -175,7 +176,7 @@ const OrganizerTeams = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); handleDeleteTeam(t.id); }}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleDeleteTeam(t.id); }}>
                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
                       </Button>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
