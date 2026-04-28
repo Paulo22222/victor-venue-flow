@@ -39,17 +39,22 @@ const Stage6Summary = () => {
 
   const jogosPorMod = (mod: string) => jogos.filter(j => (j.modalidade || '').toUpperCase() === mod.toUpperCase());
 
-  const rankingPorMod = (mod: string) => {
+  const generoEquipe = (nome: string, mod: string): string => {
+    const eq = competidores.equipes.find(e => e.nome === nome && (e.modalidade || '').toUpperCase() === mod.toUpperCase());
+    return (eq?.genero as string) || 'misto';
+  };
+
+  const rankingPorModEGenero = (mod: string, genero: string) => {
     const regra = getSportRule(mod);
     const tabela: Record<string, { p: number; v: number; e: number; d: number; sg: number }> = {};
-    const eqs = competidores.equipes.filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase());
+    const eqs = competidores.equipes.filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase() && (e.genero || 'misto') === genero);
     eqs.forEach(e => { tabela[e.nome] = { p: 0, v: 0, e: 0, d: 0, sg: 0 }; });
     jogosPorMod(mod).forEach(j => {
       const r = resultados[j.id];
       if (!r) return;
+      // Considerar apenas jogos onde ambas equipes pertencem ao gênero
+      if (!tabela[j.participanteA] || !tabela[j.participanteB]) return;
       const { a, b } = pontosRanking(r.placarA, r.placarB, regra);
-      if (!tabela[j.participanteA]) tabela[j.participanteA] = { p: 0, v: 0, e: 0, d: 0, sg: 0 };
-      if (!tabela[j.participanteB]) tabela[j.participanteB] = { p: 0, v: 0, e: 0, d: 0, sg: 0 };
       tabela[j.participanteA].p += a;
       tabela[j.participanteB].p += b;
       tabela[j.participanteA].sg += (r.placarA - r.placarB);
@@ -59,6 +64,14 @@ const Stage6Summary = () => {
       else { tabela[j.participanteA].e++; tabela[j.participanteB].e++; }
     });
     return Object.entries(tabela).sort((a, b) => b[1].p - a[1].p || b[1].sg - a[1].sg);
+  };
+
+  const generosNaMod = (mod: string): string[] => {
+    const set = new Set<string>();
+    competidores.equipes
+      .filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase())
+      .forEach(e => set.add(e.genero || 'misto'));
+    return Array.from(set);
   };
 
   const handleFinalize = async () => {
