@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      badge_prints: {
+        Row: {
+          athlete_id: string
+          created_at: string
+          evento_id: string | null
+          id: string
+          printed_by: string | null
+          segunda_via: boolean
+        }
+        Insert: {
+          athlete_id: string
+          created_at?: string
+          evento_id?: string | null
+          id?: string
+          printed_by?: string | null
+          segunda_via?: boolean
+        }
+        Update: {
+          athlete_id?: string
+          created_at?: string
+          evento_id?: string | null
+          id?: string
+          printed_by?: string | null
+          segunda_via?: boolean
+        }
+        Relationships: []
+      }
       competition_athletes: {
         Row: {
           codigo: string | null
@@ -86,6 +113,7 @@ export type Database = {
         Row: {
           competition_id: string
           created_at: string
+          data: string | null
           esporte: string | null
           horario: string | null
           id: string
@@ -100,6 +128,7 @@ export type Database = {
         Insert: {
           competition_id: string
           created_at?: string
+          data?: string | null
           esporte?: string | null
           horario?: string | null
           id?: string
@@ -114,6 +143,7 @@ export type Database = {
         Update: {
           competition_id?: string
           created_at?: string
+          data?: string | null
           esporte?: string | null
           horario?: string | null
           id?: string
@@ -318,34 +348,73 @@ export type Database = {
       }
       organizer_team_members: {
         Row: {
+          alergias: string | null
+          campus: string | null
           codigo: string | null
+          contato_emergencia: string | null
           created_at: string
+          curso: string | null
           data_nascimento: string | null
           documento: string | null
+          enfermidades: string | null
+          foto_url: string | null
           genero: string | null
           id: string
+          instituicao: string | null
+          modalidades: string[] | null
           nome: string
-          team_id: string
+          numero_atleta: string | null
+          observacoes: string | null
+          rg: string | null
+          team_id: string | null
+          telefone: string | null
+          tipo_sanguineo: string | null
         }
         Insert: {
+          alergias?: string | null
+          campus?: string | null
           codigo?: string | null
+          contato_emergencia?: string | null
           created_at?: string
+          curso?: string | null
           data_nascimento?: string | null
           documento?: string | null
+          enfermidades?: string | null
+          foto_url?: string | null
           genero?: string | null
           id?: string
+          instituicao?: string | null
+          modalidades?: string[] | null
           nome: string
-          team_id: string
+          numero_atleta?: string | null
+          observacoes?: string | null
+          rg?: string | null
+          team_id?: string | null
+          telefone?: string | null
+          tipo_sanguineo?: string | null
         }
         Update: {
+          alergias?: string | null
+          campus?: string | null
           codigo?: string | null
+          contato_emergencia?: string | null
           created_at?: string
+          curso?: string | null
           data_nascimento?: string | null
           documento?: string | null
+          enfermidades?: string | null
+          foto_url?: string | null
           genero?: string | null
           id?: string
+          instituicao?: string | null
+          modalidades?: string[] | null
           nome?: string
-          team_id?: string
+          numero_atleta?: string | null
+          observacoes?: string | null
+          rg?: string | null
+          team_id?: string | null
+          telefone?: string | null
+          tipo_sanguineo?: string | null
         }
         Relationships: [
           {
@@ -389,28 +458,76 @@ export type Database = {
       }
       profiles: {
         Row: {
+          campus: string | null
           created_at: string
           display_name: string | null
           id: string
+          instituicao: string | null
+          telefone: string | null
           updated_at: string
           user_id: string
           username: string | null
         }
         Insert: {
+          campus?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          instituicao?: string | null
+          telefone?: string | null
           updated_at?: string
           user_id: string
           username?: string | null
         }
         Update: {
+          campus?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          instituicao?: string | null
+          telefone?: string | null
           updated_at?: string
           user_id?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      sport_modalities: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          max_atletas: number | null
+          max_equipes: number | null
+          nome: string
+          regras: string | null
+          unidade: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          max_atletas?: number | null
+          max_equipes?: number | null
+          nome: string
+          regras?: string | null
+          unidade?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          max_atletas?: number | null
+          max_equipes?: number | null
+          nome?: string
+          regras?: string | null
+          unidade?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -472,6 +589,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      venues: {
+        Row: {
+          capacidade: number | null
+          created_at: string
+          disponivel: boolean
+          endereco: string | null
+          id: string
+          modalidade_id: string | null
+          modalidade_nome: string | null
+          nome: string
+          observacoes: string | null
+          updated_at: string
+        }
+        Insert: {
+          capacidade?: number | null
+          created_at?: string
+          disponivel?: boolean
+          endereco?: string | null
+          id?: string
+          modalidade_id?: string | null
+          modalidade_nome?: string | null
+          nome: string
+          observacoes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          capacidade?: number | null
+          created_at?: string
+          disponivel?: boolean
+          endereco?: string | null
+          id?: string
+          modalidade_id?: string | null
+          modalidade_nome?: string | null
+          nome?: string
+          observacoes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venues_modalidade_id_fkey"
+            columns: ["modalidade_id"]
+            isOneToOne: false
+            referencedRelation: "sport_modalities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
