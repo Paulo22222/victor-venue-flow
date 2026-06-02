@@ -22,7 +22,7 @@ const AdminUsers = () => {
   const [updating, setUpdating] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [newUser, setNewUser] = useState({ username: '', password: '', display_name: '', role: 'organizer' });
+  const [newUser, setNewUser] = useState({ username: '', password: '', display_name: '', role: 'organizer', telefone: '', instituicao: '', campus: '' });
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -60,7 +60,7 @@ const AdminUsers = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast({ title: 'Usuário criado!', description: `Login: ${u}` });
-      setNewUser({ username: '', password: '', display_name: '', role: 'organizer' });
+      setNewUser({ username: '', password: '', display_name: '', role: 'organizer', telefone: '', instituicao: '', campus: '' });
       setCreateOpen(false);
       fetchUsers();
     } catch (err: any) { toast({ title: 'Erro', description: err.message, variant: 'destructive' }); }
@@ -106,6 +106,14 @@ const AdminUsers = () => {
               <div>
                 <Label className="text-xs">Senha inicial *</Label>
                 <Input type="text" value={newUser.password} onChange={e => setNewUser(s => ({ ...s, password: e.target.value }))} placeholder="mínimo 6 caracteres" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label className="text-xs">Telefone</Label><Input value={newUser.telefone} onChange={e => setNewUser(s => ({ ...s, telefone: e.target.value }))} /></div>
+                <div><Label className="text-xs">Instituição</Label><Input value={newUser.instituicao} onChange={e => setNewUser(s => ({ ...s, instituicao: e.target.value }))} /></div>
+              </div>
+              <div>
+                <Label className="text-xs">Campus / Unidade</Label>
+                <Input value={newUser.campus} onChange={e => setNewUser(s => ({ ...s, campus: e.target.value }))} />
               </div>
               <div>
                 <Label className="text-xs">Papel</Label>

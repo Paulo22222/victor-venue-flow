@@ -13,6 +13,9 @@ import AdminEvents from "./pages/admin/AdminEvents";
 import AdminWizard from "./pages/admin/AdminWizard";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminTeamsView from "./pages/admin/AdminTeamsView";
+import AdminModalities from "./pages/admin/AdminModalities";
+import AdminVenues from "./pages/admin/AdminVenues";
+import AdminBadges from "./pages/admin/AdminBadges";
 import OrganizerLayout from "./pages/organizer/OrganizerLayout";
 import OrganizerDashboard from "./pages/organizer/OrganizerDashboard";
 import OrganizerTeams from "./pages/organizer/OrganizerTeams";
@@ -55,6 +58,9 @@ const App = () => (
               <Route path="/admin/events" element={<AdminEvents />} />
               <Route path="/admin/wizard" element={<AdminWizard />} />
               <Route path="/admin/teams" element={<AdminTeamsView />} />
+              <Route path="/admin/modalities" element={<AdminModalities />} />
+              <Route path="/admin/venues" element={<AdminVenues />} />
+              <Route path="/admin/badges" element={<AdminBadges />} />
               <Route path="/admin/users" element={<AdminUsers />} />
             </Route>
 

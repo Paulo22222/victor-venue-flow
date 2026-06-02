@@ -177,7 +177,6 @@ const Stage3Teams = () => {
         </Button>
         <Button
           onClick={() => setStep(4)}
-          disabled={state.competidores.equipes.length === 0}
           className="gradient-primary text-primary-foreground gap-2 px-8"
         >
           Continuar <ChevronRight className="w-4 h-4" />
