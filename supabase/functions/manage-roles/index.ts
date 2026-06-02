@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
 
     // POST ?action=create — create new user with role using USERNAME
     if (method === "POST" && action === "create") {
-      const { username, password, display_name, role } = await req.json();
+      const { username, password, display_name, role, telefone, instituicao, campus } = await req.json();
 
       if (!username || !password || !role || !["admin", "organizer"].includes(role)) {
         return new Response(JSON.stringify({ error: "Dados inválidos. Informe username, senha e papel (admin ou organizer)." }), {
@@ -123,9 +123,15 @@ Deno.serve(async (req) => {
       }
 
       const userId = created.user.id;
-      // Ensure profile has username (trigger may have created with raw_user_meta_data already)
       await supabaseAdmin.from("profiles").upsert(
-        { user_id: userId, display_name: display_name || username, username: username.toLowerCase() },
+        {
+          user_id: userId,
+          display_name: display_name || username,
+          username: username.toLowerCase(),
+          telefone: telefone || null,
+          instituicao: instituicao || null,
+          campus: campus || null,
+        },
         { onConflict: "user_id" }
       );
 
