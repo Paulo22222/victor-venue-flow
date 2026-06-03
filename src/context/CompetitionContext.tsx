@@ -123,7 +123,7 @@ export const CompetitionProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <CompetitionContext.Provider value={{ state, competitionId, saving, setStep, updateEvento, updateCompetidores, updateDisputa, updateLogistica, setJogos, updateResultado, save, load, resetState, remove, finalize }}>
+    <CompetitionContext.Provider value={{ state, competitionId, saving, setStep, updateEvento, updateCompetidores, updateDisputa, updateLogistica, setJogos, updateJogo, updateResultado, save, load, resetState, remove, finalize }}>
       {children}
     </CompetitionContext.Provider>
   );
