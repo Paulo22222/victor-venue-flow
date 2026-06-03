@@ -1,15 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useCompetition } from '@/context/CompetitionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ChevronLeft, Save, CheckCircle2, FileText, Trophy, Loader2, Minus, Plus, Radio, Flag } from 'lucide-react';
+import { ChevronLeft, Save, CheckCircle2, FileText, Trophy, Loader2, Minus, Plus, Radio, Flag, CalendarClock, MapPin } from 'lucide-react';
 import { generateCompetitionPDF } from '@/utils/pdfGenerator';
 import { getSportRule, pontosRanking } from '@/utils/sportRules';
-import { updateMatchScore } from '@/services/competitionService';
+import { updateMatchScore, updateMatchSchedule } from '@/services/competitionService';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import type { Jogo } from '@/types/competition';
 
 const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
