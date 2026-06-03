@@ -15,6 +15,8 @@ interface Athlete {
   id: string; nome: string; foto_url: string | null; instituicao: string | null;
   campus: string | null; curso: string | null; modalidades: string[] | null; numero_atleta: string | null;
   team_id: string | null;
+  tipo_sanguineo: string | null; contato_emergencia: string | null;
+  alergias: string | null; enfermidades: string | null; observacoes: string | null;
   team?: { nome: string; modalidade: string | null } | null;
 }
 
