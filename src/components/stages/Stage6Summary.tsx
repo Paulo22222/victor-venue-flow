@@ -161,6 +161,72 @@ const Stage6Summary = () => {
     );
   };
 
+  const RescheduleDialog = () => {
+    const j = rescheduleJogo;
+    const [data, setData] = useState(j?.data || '');
+    const [horario, setHorario] = useState(j?.horario || '');
+    const [local, setLocal] = useState(j?.local || '');
+    const [savingSched, setSavingSched] = useState(false);
+    useEffect(() => {
+      setData(j?.data || ''); setHorario(j?.horario || ''); setLocal(j?.local || '');
+    }, [j?.id]);
+    if (!j) return null;
+    const filteredVenues = venues.filter(v => !v.modalidade_nome || v.modalidade_nome.toUpperCase() === (j.modalidade || '').toUpperCase());
+    const handleSave = async () => {
+      if (!competitionId) return toast({ title: 'Salve o evento primeiro', variant: 'destructive' });
+      setSavingSched(true);
+      try {
+        await updateMatchSchedule(j.id, { data: data || null, horario: horario || null, local: local || null });
+        updateJogo(j.id, { data: data || undefined, horario: horario || undefined, local: local || undefined });
+        toast({ title: 'Jogo agendado!' });
+        setRescheduleJogo(null);
+      } catch (e: any) {
+        toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+      } finally { setSavingSched(false); }
+    };
+    return (
+      <Dialog open={!!j} onOpenChange={(o) => !o && setRescheduleJogo(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><CalendarClock className="w-5 h-5 text-primary" /> Agendar jogo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-lg bg-muted p-3 text-sm">
+              <div className="font-semibold">{j.participanteA} <span className="text-muted-foreground font-normal">vs</span> {j.participanteB}</div>
+              <div className="text-xs text-muted-foreground mt-1">{j.modalidade} · Rodada {j.rodada}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-xs">Data</Label><Input type="date" value={data} onChange={e => setData(e.target.value)} /></div>
+              <div><Label className="text-xs">Horário</Label><Input type="time" value={horario} onChange={e => setHorario(e.target.value)} /></div>
+            </div>
+            <div>
+              <Label className="text-xs">Local</Label>
+              {filteredVenues.length > 0 ? (
+                <Select value={local} onValueChange={setLocal}>
+                  <SelectTrigger><SelectValue placeholder="Selecione um local cadastrado" /></SelectTrigger>
+                  <SelectContent>
+                    {filteredVenues.map(v => <SelectItem key={v.id} value={v.nome}>{v.nome}</SelectItem>)}
+                    <SelectItem value="__custom__">Outro (digitar manualmente)</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : null}
+              {(filteredVenues.length === 0 || local === '__custom__') && (
+                <Input className="mt-2" placeholder="Ex: Ginásio Central — Quadra 1" value={local === '__custom__' ? '' : local} onChange={e => setLocal(e.target.value)} />
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRescheduleJogo(null)}>Cancelar</Button>
+            <Button className="gradient-primary text-primary-foreground gap-2" onClick={handleSave} disabled={savingSched}>
+              {savingSched ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar agendamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in-up py-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
