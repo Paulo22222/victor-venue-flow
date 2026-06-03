@@ -328,7 +328,7 @@ const Stage6Summary = () => {
                                 const winA = decided && cur.placarA > cur.placarB;
                                 const winB = decided && cur.placarB > cur.placarA;
                                 return (
-                                  <div key={j.id} className="rounded-lg border bg-card p-3">
+                                  <div key={j.id} className="rounded-lg border bg-card p-3 space-y-2">
                                     <ScoreRow
                                       name={j.participanteA}
                                       value={cur.placarA}
@@ -338,7 +338,7 @@ const Stage6Summary = () => {
                                       rule={regra}
                                       disabled={state.finalizado}
                                     />
-                                    <div className="border-t my-2" />
+                                    <div className="border-t" />
                                     <ScoreRow
                                       name={j.participanteB}
                                       value={cur.placarB}
@@ -348,6 +348,20 @@ const Stage6Summary = () => {
                                       rule={regra}
                                       disabled={state.finalizado}
                                     />
+                                    <div className="flex items-center justify-between pt-1 text-[11px] text-muted-foreground border-t">
+                                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                        {(j.data || j.horario) && (
+                                          <span className="inline-flex items-center gap-1"><CalendarClock className="w-3 h-3" />{j.data ? new Date(j.data + 'T00:00:00').toLocaleDateString('pt-BR') : '—'} {j.horario || ''}</span>
+                                        )}
+                                        {j.local && <span className="inline-flex items-center gap-1 truncate"><MapPin className="w-3 h-3" />{j.local}</span>}
+                                        {!j.data && !j.horario && !j.local && <span className="italic">Não agendado</span>}
+                                      </div>
+                                      {!state.finalizado && (
+                                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => setRescheduleJogo(j)}>
+                                          <CalendarClock className="w-3 h-3" /> Agendar
+                                        </Button>
+                                      )}
+                                    </div>
                                   </div>
                                 );
                               })}
