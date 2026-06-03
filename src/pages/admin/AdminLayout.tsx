@@ -1,12 +1,13 @@
 import { Outlet } from 'react-router-dom';
 import AppLayout, { NavItem } from '@/components/layout/AppLayout';
-import { LayoutDashboard, Trophy, Users, Shield, ListChecks, MapPin, IdCard } from 'lucide-react';
+import { LayoutDashboard, Trophy, Users, Shield, ListChecks, MapPin, IdCard, UserPlus } from 'lucide-react';
 import { CompetitionProvider } from '@/context/CompetitionContext';
 
 const items: NavItem[] = [
   { title: 'Painel', url: '/admin/dashboard', icon: LayoutDashboard },
   { title: 'Eventos', url: '/admin/events', icon: Trophy },
-  { title: 'Equipes', url: '/admin/teams', icon: Users },
+  { title: 'Equipes & Atletas', url: '/admin/athletes', icon: UserPlus },
+  { title: 'Acervo organizadores', url: '/admin/teams', icon: Users },
   { title: 'Modalidades', url: '/admin/modalities', icon: ListChecks },
   { title: 'Locais', url: '/admin/venues', icon: MapPin },
   { title: 'Crachás', url: '/admin/badges', icon: IdCard },
