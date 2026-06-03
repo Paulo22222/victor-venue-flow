@@ -24,6 +24,7 @@ interface CompetitionContextType {
   updateDisputa: (data: Partial<DisputaData>) => void;
   updateLogistica: (data: Partial<LogisticaData>) => void;
   setJogos: (jogos: Jogo[]) => void;
+  updateJogo: (jogoId: string, patch: Partial<Jogo>) => void;
   updateResultado: (jogoId: string, placarA: number, placarB: number) => void;
   save: () => Promise<void>;
   load: (id: string) => Promise<void>;
