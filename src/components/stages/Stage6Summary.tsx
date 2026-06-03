@@ -19,12 +19,19 @@ import type { Jogo } from '@/types/competition';
 const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
 const Stage6Summary = () => {
-  const { state, competitionId, save, saving, finalize, updateResultado, setStep } = useCompetition();
+  const { state, competitionId, save, saving, finalize, updateResultado, updateJogo, setStep } = useCompetition();
   const { evento, competidores, jogos, resultados, logistica, disputa } = state;
   const modalidades = competidores.modalidades;
   const [activeTab, setActiveTab] = useState(modalidades[0]?.nome || 'resumo');
   const [savingScore, setSavingScore] = useState<string | null>(null);
   const [finalizeRound, setFinalizeRound] = useState<{ mod: string; rodada: number } | null>(null);
+  const [rescheduleJogo, setRescheduleJogo] = useState<Jogo | null>(null);
+  const [venues, setVenues] = useState<{ id: string; nome: string; modalidade_nome: string | null }[]>([]);
+
+  useEffect(() => {
+    supabase.from('venues').select('id, nome, modalidade_nome').eq('disponivel', true).order('nome')
+      .then(({ data }) => setVenues((data ?? []) as any));
+  }, []);
 
   const liveUpdate = async (jogoId: string, a: number, b: number) => {
     if (!competitionId || !isUuid(jogoId)) {
