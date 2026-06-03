@@ -445,6 +445,7 @@ const Stage6Summary = () => {
       </Tabs>
 
       <FinalizeRoundDialog />
+      <RescheduleDialog />
 
       <div className="flex justify-between pt-2">
         <Button variant="outline" onClick={() => setStep(5)} className="gap-2">
