@@ -15,6 +15,8 @@ interface Athlete {
   id: string; nome: string; foto_url: string | null; instituicao: string | null;
   campus: string | null; curso: string | null; modalidades: string[] | null; numero_atleta: string | null;
   team_id: string | null;
+  tipo_sanguineo: string | null; contato_emergencia: string | null;
+  alergias: string | null; enfermidades: string | null; observacoes: string | null;
   team?: { nome: string; modalidade: string | null } | null;
 }
 
@@ -78,6 +80,8 @@ const AdminBadges = () => {
         instituicao: a.instituicao, campus: a.campus, curso: a.curso,
         modalidade: a.team?.modalidade || (a.modalidades?.[0] ?? null),
         modalidades: a.modalidades, numero_atleta: a.numero_atleta,
+        tipo_sanguineo: a.tipo_sanguineo, contato_emergencia: a.contato_emergencia,
+        alergias: a.alergias, enfermidades: a.enfermidades, observacoes: a.observacoes,
         eventName: 'IF Competition',
       }));
       await generateBadgesPDF(data, list.length === 1 ? `cracha-${list[0].nome}.pdf` : `crachas-${list.length}.pdf`);

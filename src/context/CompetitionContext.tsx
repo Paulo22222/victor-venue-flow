@@ -24,6 +24,7 @@ interface CompetitionContextType {
   updateDisputa: (data: Partial<DisputaData>) => void;
   updateLogistica: (data: Partial<LogisticaData>) => void;
   setJogos: (jogos: Jogo[]) => void;
+  updateJogo: (jogoId: string, patch: Partial<Jogo>) => void;
   updateResultado: (jogoId: string, placarA: number, placarB: number) => void;
   save: () => Promise<void>;
   load: (id: string) => Promise<void>;
@@ -45,6 +46,8 @@ export const CompetitionProvider = ({ children }: { children: ReactNode }) => {
   const updateDisputa = (data: Partial<DisputaData>) => setState(prev => ({ ...prev, disputa: { ...prev.disputa, ...data } }));
   const updateLogistica = (data: Partial<LogisticaData>) => setState(prev => ({ ...prev, logistica: { ...prev.logistica, ...data } }));
   const setJogos = (jogos: Jogo[]) => setState(prev => ({ ...prev, jogos }));
+  const updateJogo = (jogoId: string, patch: Partial<Jogo>) =>
+    setState(prev => ({ ...prev, jogos: prev.jogos.map(j => j.id === jogoId ? { ...j, ...patch } : j) }));
   const updateResultado = (jogoId: string, placarA: number, placarB: number) =>
     setState(prev => ({ ...prev, resultados: { ...prev.resultados, [jogoId]: { placarA, placarB } } }));
 
@@ -120,7 +123,7 @@ export const CompetitionProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <CompetitionContext.Provider value={{ state, competitionId, saving, setStep, updateEvento, updateCompetidores, updateDisputa, updateLogistica, setJogos, updateResultado, save, load, resetState, remove, finalize }}>
+    <CompetitionContext.Provider value={{ state, competitionId, saving, setStep, updateEvento, updateCompetidores, updateDisputa, updateLogistica, setJogos, updateJogo, updateResultado, save, load, resetState, remove, finalize }}>
       {children}
     </CompetitionContext.Provider>
   );

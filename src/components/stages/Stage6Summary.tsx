@@ -1,25 +1,37 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useCompetition } from '@/context/CompetitionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ChevronLeft, Save, CheckCircle2, FileText, Trophy, Loader2, Minus, Plus, Radio, Flag } from 'lucide-react';
+import { ChevronLeft, Save, CheckCircle2, FileText, Trophy, Loader2, Minus, Plus, Radio, Flag, CalendarClock, MapPin } from 'lucide-react';
 import { generateCompetitionPDF } from '@/utils/pdfGenerator';
 import { getSportRule, pontosRanking } from '@/utils/sportRules';
-import { updateMatchScore } from '@/services/competitionService';
+import { updateMatchScore, updateMatchSchedule } from '@/services/competitionService';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import type { Jogo } from '@/types/competition';
 
 const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
 const Stage6Summary = () => {
-  const { state, competitionId, save, saving, finalize, updateResultado, setStep } = useCompetition();
+  const { state, competitionId, save, saving, finalize, updateResultado, updateJogo, setStep } = useCompetition();
   const { evento, competidores, jogos, resultados, logistica, disputa } = state;
   const modalidades = competidores.modalidades;
   const [activeTab, setActiveTab] = useState(modalidades[0]?.nome || 'resumo');
   const [savingScore, setSavingScore] = useState<string | null>(null);
   const [finalizeRound, setFinalizeRound] = useState<{ mod: string; rodada: number } | null>(null);
+  const [rescheduleJogo, setRescheduleJogo] = useState<Jogo | null>(null);
+  const [venues, setVenues] = useState<{ id: string; nome: string; modalidade_nome: string | null }[]>([]);
+
+  useEffect(() => {
+    supabase.from('venues').select('id, nome, modalidade_nome').eq('disponivel', true).order('nome')
+      .then(({ data }) => setVenues((data ?? []) as any));
+  }, []);
 
   const liveUpdate = async (jogoId: string, a: number, b: number) => {
     if (!competitionId || !isUuid(jogoId)) {
@@ -148,6 +160,72 @@ const Stage6Summary = () => {
       </Dialog>
     );
   };
+
+  const RescheduleDialog = () => {
+    const j = rescheduleJogo;
+    const [data, setData] = useState(j?.data || '');
+    const [horario, setHorario] = useState(j?.horario || '');
+    const [local, setLocal] = useState(j?.local || '');
+    const [savingSched, setSavingSched] = useState(false);
+    useEffect(() => {
+      setData(j?.data || ''); setHorario(j?.horario || ''); setLocal(j?.local || '');
+    }, [j?.id]);
+    if (!j) return null;
+    const filteredVenues = venues.filter(v => !v.modalidade_nome || v.modalidade_nome.toUpperCase() === (j.modalidade || '').toUpperCase());
+    const handleSave = async () => {
+      if (!competitionId) return toast({ title: 'Salve o evento primeiro', variant: 'destructive' });
+      setSavingSched(true);
+      try {
+        await updateMatchSchedule(j.id, { data: data || null, horario: horario || null, local: local || null });
+        updateJogo(j.id, { data: data || undefined, horario: horario || undefined, local: local || undefined });
+        toast({ title: 'Jogo agendado!' });
+        setRescheduleJogo(null);
+      } catch (e: any) {
+        toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+      } finally { setSavingSched(false); }
+    };
+    return (
+      <Dialog open={!!j} onOpenChange={(o) => !o && setRescheduleJogo(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><CalendarClock className="w-5 h-5 text-primary" /> Agendar jogo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-lg bg-muted p-3 text-sm">
+              <div className="font-semibold">{j.participanteA} <span className="text-muted-foreground font-normal">vs</span> {j.participanteB}</div>
+              <div className="text-xs text-muted-foreground mt-1">{j.modalidade} · Rodada {j.rodada}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-xs">Data</Label><Input type="date" value={data} onChange={e => setData(e.target.value)} /></div>
+              <div><Label className="text-xs">Horário</Label><Input type="time" value={horario} onChange={e => setHorario(e.target.value)} /></div>
+            </div>
+            <div>
+              <Label className="text-xs">Local</Label>
+              {filteredVenues.length > 0 ? (
+                <Select value={local} onValueChange={setLocal}>
+                  <SelectTrigger><SelectValue placeholder="Selecione um local cadastrado" /></SelectTrigger>
+                  <SelectContent>
+                    {filteredVenues.map(v => <SelectItem key={v.id} value={v.nome}>{v.nome}</SelectItem>)}
+                    <SelectItem value="__custom__">Outro (digitar manualmente)</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : null}
+              {(filteredVenues.length === 0 || local === '__custom__') && (
+                <Input className="mt-2" placeholder="Ex: Ginásio Central — Quadra 1" value={local === '__custom__' ? '' : local} onChange={e => setLocal(e.target.value)} />
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRescheduleJogo(null)}>Cancelar</Button>
+            <Button className="gradient-primary text-primary-foreground gap-2" onClick={handleSave} disabled={savingSched}>
+              {savingSched ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar agendamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in-up py-6">
@@ -316,7 +394,7 @@ const Stage6Summary = () => {
                                 const winA = decided && cur.placarA > cur.placarB;
                                 const winB = decided && cur.placarB > cur.placarA;
                                 return (
-                                  <div key={j.id} className="rounded-lg border bg-card p-3">
+                                  <div key={j.id} className="rounded-lg border bg-card p-3 space-y-2">
                                     <ScoreRow
                                       name={j.participanteA}
                                       value={cur.placarA}
@@ -326,7 +404,7 @@ const Stage6Summary = () => {
                                       rule={regra}
                                       disabled={state.finalizado}
                                     />
-                                    <div className="border-t my-2" />
+                                    <div className="border-t" />
                                     <ScoreRow
                                       name={j.participanteB}
                                       value={cur.placarB}
@@ -336,6 +414,20 @@ const Stage6Summary = () => {
                                       rule={regra}
                                       disabled={state.finalizado}
                                     />
+                                    <div className="flex items-center justify-between pt-1 text-[11px] text-muted-foreground border-t">
+                                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                        {(j.data || j.horario) && (
+                                          <span className="inline-flex items-center gap-1"><CalendarClock className="w-3 h-3" />{j.data ? new Date(j.data + 'T00:00:00').toLocaleDateString('pt-BR') : '—'} {j.horario || ''}</span>
+                                        )}
+                                        {j.local && <span className="inline-flex items-center gap-1 truncate"><MapPin className="w-3 h-3" />{j.local}</span>}
+                                        {!j.data && !j.horario && !j.local && <span className="italic">Não agendado</span>}
+                                      </div>
+                                      {!state.finalizado && (
+                                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => setRescheduleJogo(j)}>
+                                          <CalendarClock className="w-3 h-3" /> Agendar
+                                        </Button>
+                                      )}
+                                    </div>
                                   </div>
                                 );
                               })}
@@ -353,6 +445,7 @@ const Stage6Summary = () => {
       </Tabs>
 
       <FinalizeRoundDialog />
+      <RescheduleDialog />
 
       <div className="flex justify-between pt-2">
         <Button variant="outline" onClick={() => setStep(5)} className="gap-2">

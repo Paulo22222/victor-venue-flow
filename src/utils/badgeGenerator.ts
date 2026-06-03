@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import QRCode from 'qrcode';
 import { imageUrlToDataUrl } from './athletePhoto';
 
 export interface BadgeAthlete {
@@ -11,15 +12,24 @@ export interface BadgeAthlete {
   modalidade?: string | null;
   modalidades?: string[] | null;
   numero_atleta?: string | null;
+  tipo_sanguineo?: string | null;
+  contato_emergencia?: string | null;
+  alergias?: string | null;
+  enfermidades?: string | null;
+  observacoes?: string | null;
   eventName?: string;
 }
 
-// Página A4 em mm. Crachá 85x110mm, 2 colunas x 2 linhas = 4 por página
+// A4 retrato, 2 colunas x 2 linhas = 4 crachás por página.
+// Página ímpar = FRENTE | Página par = VERSO (mesmo grupo, espelhado horizontalmente
+// para alinhar quando impresso frente/verso pela borda longa).
 const PAGE_W = 210, PAGE_H = 297;
 const CARD_W = 90, CARD_H = 130;
 const COLS = 2, ROWS = 2;
 const MARGIN_X = (PAGE_W - COLS * CARD_W) / (COLS + 1);
 const MARGIN_Y = (PAGE_H - ROWS * CARD_H) / (ROWS + 1);
+const PRIMARY: [number, number, number] = [15, 23, 42];
+const ACCENT: [number, number, number] = [37, 99, 235];
 
 const FALLBACK_PHOTO =
   'data:image/svg+xml;utf8,' + encodeURIComponent(
@@ -31,18 +41,32 @@ async function loadPhoto(url?: string | null): Promise<string> {
   try { return await imageUrlToDataUrl(url); } catch { return FALLBACK_PHOTO; }
 }
 
-function drawCard(pdf: jsPDF, x: number, y: number, a: BadgeAthlete, photoData: string) {
-  // Borda
-  pdf.setDrawColor(15, 23, 42);
+async function makeQr(payload: string): Promise<string> {
+  try {
+    return await QRCode.toDataURL(payload, { margin: 0, width: 220, errorCorrectionLevel: 'M' });
+  } catch { return FALLBACK_PHOTO; }
+}
+
+function cardOrigin(posIdx: number, mirror = false) {
+  const col = posIdx % COLS;
+  const row = Math.floor(posIdx / COLS);
+  const effectiveCol = mirror ? (COLS - 1 - col) : col;
+  const x = MARGIN_X + effectiveCol * (CARD_W + MARGIN_X);
+  const y = MARGIN_Y + row * (CARD_H + MARGIN_Y);
+  return { x, y };
+}
+
+function drawFront(pdf: jsPDF, x: number, y: number, a: BadgeAthlete, photoData: string) {
+  pdf.setDrawColor(...PRIMARY);
   pdf.setLineWidth(0.4);
   pdf.roundedRect(x, y, CARD_W, CARD_H, 3, 3, 'S');
 
   // Cabeçalho
-  pdf.setFillColor(15, 23, 42);
+  pdf.setFillColor(...PRIMARY);
   pdf.rect(x, y, CARD_W, 14, 'F');
   pdf.setTextColor(255, 255, 255);
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(11);
+  pdf.setFontSize(10);
   pdf.text(a.eventName || 'EVENTO ESPORTIVO', x + CARD_W / 2, y + 9, { align: 'center' });
 
   // Foto
@@ -53,7 +77,7 @@ function drawCard(pdf: jsPDF, x: number, y: number, a: BadgeAthlete, photoData: 
   pdf.setDrawColor(100); pdf.rect(px, py, photoSize, photoSize, 'S');
 
   // Nome
-  pdf.setTextColor(15, 23, 42);
+  pdf.setTextColor(...PRIMARY);
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(11);
   const nome = (a.nome || '').toUpperCase();
@@ -83,20 +107,115 @@ function drawCard(pdf: jsPDF, x: number, y: number, a: BadgeAthlete, photoData: 
   pdf.setFontSize(9);
   pdf.setTextColor(80);
   const code = a.numero_atleta || a.id.slice(0, 8).toUpperCase();
-  pdf.text(`Nº ${code}`, x + CARD_W / 2, y + CARD_H - 4, { align: 'center' });
+  pdf.text(`No ${code}`, x + CARD_W / 2, y + CARD_H - 4, { align: 'center' });
+}
+
+function drawBack(pdf: jsPDF, x: number, y: number, a: BadgeAthlete, qrData: string) {
+  pdf.setDrawColor(...PRIMARY);
+  pdf.setLineWidth(0.4);
+  pdf.roundedRect(x, y, CARD_W, CARD_H, 3, 3, 'S');
+
+  // Cabeçalho
+  pdf.setFillColor(...PRIMARY);
+  pdf.rect(x, y, CARD_W, 10, 'F');
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(8);
+  pdf.text('INFORMAÇÕES DE EMERGÊNCIA', x + CARD_W / 2, y + 6.5, { align: 'center' });
+
+  // Bloco de tipo sanguíneo (caixa destacada)
+  const ts = a.tipo_sanguineo?.trim() || '—';
+  pdf.setFillColor(220, 38, 38);
+  pdf.roundedRect(x + 4, y + 13, 26, 18, 1.5, 1.5, 'F');
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(7);
+  pdf.text('TIPO SANGUÍNEO', x + 17, y + 18, { align: 'center' });
+  pdf.setFontSize(14);
+  pdf.text(ts, x + 17, y + 27, { align: 'center' });
+
+  // Contato emergência (caixa)
+  pdf.setTextColor(...PRIMARY);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(7);
+  pdf.text('CONTATO DE EMERGÊNCIA', x + 33, y + 17);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8.5);
+  const ce = a.contato_emergencia || 'Não informado';
+  const ceLines = pdf.splitTextToSize(ce, CARD_W - 36);
+  pdf.text(ceLines.slice(0, 2), x + 33, y + 22);
+
+  // Linhas detalhadas
+  let dy = y + 38;
+  const section = (label: string, value?: string | null, maxLines = 2) => {
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(7);
+    pdf.setTextColor(...ACCENT);
+    pdf.text(label.toUpperCase(), x + 4, dy);
+    dy += 3.2;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8);
+    pdf.setTextColor(...PRIMARY);
+    const lines = pdf.splitTextToSize(value && value.trim() ? value : 'Nenhum(a) informado(a).', CARD_W - 8);
+    const shown = lines.slice(0, maxLines);
+    pdf.text(shown, x + 4, dy);
+    dy += shown.length * 3.6 + 2;
+  };
+  section('Alergias', a.alergias);
+  section('Enfermidades / Condições', a.enfermidades);
+  section('Observações', a.observacoes, 3);
+
+  // QR Code no rodapé
+  const qrSize = 24;
+  const qx = x + CARD_W - qrSize - 4;
+  const qy = y + CARD_H - qrSize - 8;
+  try { pdf.addImage(qrData, 'PNG', qx, qy, qrSize, qrSize); } catch { /* noop */ }
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(6);
+  pdf.setTextColor(120);
+  pdf.text('Escaneie para validação', qx + qrSize / 2, qy + qrSize + 3, { align: 'center' });
+
+  // Identificação inferior esquerda
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(7);
+  pdf.setTextColor(...PRIMARY);
+  pdf.text((a.nome || '').toUpperCase().slice(0, 30), x + 4, y + CARD_H - 12);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(6);
+  pdf.setTextColor(120);
+  const code = a.numero_atleta || a.id.slice(0, 8).toUpperCase();
+  pdf.text(`ID ${code}`, x + 4, y + CARD_H - 7);
+  pdf.text(a.eventName || '', x + 4, y + CARD_H - 3);
 }
 
 export async function generateBadgesPDF(athletes: BadgeAthlete[], filename = 'crachas.pdf') {
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
   const photos = await Promise.all(athletes.map(a => loadPhoto(a.foto_url)));
-  athletes.forEach((a, idx) => {
-    const posIdx = idx % (COLS * ROWS);
-    if (idx > 0 && posIdx === 0) pdf.addPage();
-    const col = posIdx % COLS;
-    const row = Math.floor(posIdx / COLS);
-    const x = MARGIN_X + col * (CARD_W + MARGIN_X);
-    const y = MARGIN_Y + row * (CARD_H + MARGIN_Y);
-    drawCard(pdf, x, y, a, photos[idx]);
-  });
+  const qrs = await Promise.all(athletes.map(a => makeQr(JSON.stringify({
+    id: a.id, nome: a.nome, evento: a.eventName, modalidade: a.modalidade,
+  }))));
+
+  const perPage = COLS * ROWS;
+  const totalGroups = Math.ceil(athletes.length / perPage);
+
+  for (let g = 0; g < totalGroups; g++) {
+    if (g > 0) pdf.addPage();
+    // FRENTE
+    for (let i = 0; i < perPage; i++) {
+      const idx = g * perPage + i;
+      if (idx >= athletes.length) break;
+      const { x, y } = cardOrigin(i, false);
+      drawFront(pdf, x, y, athletes[idx], photos[idx]);
+    }
+    // VERSO (nova página, espelhada)
+    pdf.addPage();
+    for (let i = 0; i < perPage; i++) {
+      const idx = g * perPage + i;
+      if (idx >= athletes.length) break;
+      const { x, y } = cardOrigin(i, true);
+      drawBack(pdf, x, y, athletes[idx], qrs[idx]);
+    }
+  }
+
   pdf.save(filename);
 }

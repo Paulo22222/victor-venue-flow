@@ -161,6 +161,7 @@ export async function saveCompetition(state: CompetitionState, existingId?: stri
       participante_b: j.participanteB,
       placar_a: state.resultados[j.id]?.placarA ?? j.placarA ?? null,
       placar_b: state.resultados[j.id]?.placarB ?? j.placarB ?? null,
+      data: j.data || null,
       horario: j.horario || null,
       local: j.local || null,
       modalidade: j.modalidade || null,
@@ -234,6 +235,7 @@ export async function loadCompetition(id: string): Promise<CompetitionState> {
     id: m.id, rodada: m.rodada,
     participanteA: m.participante_a, participanteB: m.participante_b,
     placarA: m.placar_a ?? undefined, placarB: m.placar_b ?? undefined,
+    data: m.data || undefined,
     horario: m.horario || undefined, local: m.local || undefined,
     modalidade: m.modalidade || undefined,
     esporte: m.esporte || undefined,
@@ -306,3 +308,17 @@ export async function updateMatchScore(matchId: string, placarA: number | null, 
     .eq('id', matchId);
   if (error) throw error;
 }
+
+// Atualiza data, horário e local de um jogo (reagendamento pós-chaveamento)
+export async function updateMatchSchedule(
+  matchId: string,
+  schedule: { data?: string | null; horario?: string | null; local?: string | null }
+): Promise<void> {
+  const payload: { data?: string | null; horario?: string | null; local?: string | null } = {};
+  if ('data' in schedule) payload.data = schedule.data ?? null;
+  if ('horario' in schedule) payload.horario = schedule.horario ?? null;
+  if ('local' in schedule) payload.local = schedule.local ?? null;
+  const { error } = await supabase.from('competition_matches').update(payload).eq('id', matchId);
+  if (error) throw error;
+}
+
