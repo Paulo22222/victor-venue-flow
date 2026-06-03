@@ -46,6 +46,8 @@ export const CompetitionProvider = ({ children }: { children: ReactNode }) => {
   const updateDisputa = (data: Partial<DisputaData>) => setState(prev => ({ ...prev, disputa: { ...prev.disputa, ...data } }));
   const updateLogistica = (data: Partial<LogisticaData>) => setState(prev => ({ ...prev, logistica: { ...prev.logistica, ...data } }));
   const setJogos = (jogos: Jogo[]) => setState(prev => ({ ...prev, jogos }));
+  const updateJogo = (jogoId: string, patch: Partial<Jogo>) =>
+    setState(prev => ({ ...prev, jogos: prev.jogos.map(j => j.id === jogoId ? { ...j, ...patch } : j) }));
   const updateResultado = (jogoId: string, placarA: number, placarB: number) =>
     setState(prev => ({ ...prev, resultados: { ...prev.resultados, [jogoId]: { placarA, placarB } } }));
 
