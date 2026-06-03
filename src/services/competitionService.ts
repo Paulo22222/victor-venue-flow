@@ -312,7 +312,7 @@ export async function updateMatchSchedule(
   matchId: string,
   schedule: { data?: string | null; horario?: string | null; local?: string | null }
 ): Promise<void> {
-  const payload: Record<string, string | null> = {};
+  const payload: { data?: string | null; horario?: string | null; local?: string | null } = {};
   if ('data' in schedule) payload.data = schedule.data ?? null;
   if ('horario' in schedule) payload.horario = schedule.horario ?? null;
   if ('local' in schedule) payload.local = schedule.local ?? null;
