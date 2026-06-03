@@ -73,6 +73,7 @@ export interface Jogo {
   participanteB: string;
   placarA?: number;
   placarB?: number;
+  data?: string;
   horario?: string;
   local?: string;
   modalidade?: string;
