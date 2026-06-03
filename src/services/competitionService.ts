@@ -306,3 +306,17 @@ export async function updateMatchScore(matchId: string, placarA: number | null, 
     .eq('id', matchId);
   if (error) throw error;
 }
+
+// Atualiza data, horário e local de um jogo (reagendamento pós-chaveamento)
+export async function updateMatchSchedule(
+  matchId: string,
+  schedule: { data?: string | null; horario?: string | null; local?: string | null }
+): Promise<void> {
+  const payload: Record<string, string | null> = {};
+  if ('data' in schedule) payload.data = schedule.data ?? null;
+  if ('horario' in schedule) payload.horario = schedule.horario ?? null;
+  if ('local' in schedule) payload.local = schedule.local ?? null;
+  const { error } = await supabase.from('competition_matches').update(payload).eq('id', matchId);
+  if (error) throw error;
+}
+
