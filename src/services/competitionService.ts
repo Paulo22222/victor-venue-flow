@@ -235,6 +235,7 @@ export async function loadCompetition(id: string): Promise<CompetitionState> {
     id: m.id, rodada: m.rodada,
     participanteA: m.participante_a, participanteB: m.participante_b,
     placarA: m.placar_a ?? undefined, placarB: m.placar_b ?? undefined,
+    data: m.data || undefined,
     horario: m.horario || undefined, local: m.local || undefined,
     modalidade: m.modalidade || undefined,
     esporte: m.esporte || undefined,
