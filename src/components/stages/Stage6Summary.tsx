@@ -33,6 +33,30 @@ const Stage6Summary = () => {
       .then(({ data }) => setVenues((data ?? []) as any));
   }, []);
 
+  // Propaga vencedor para o próximo jogo da chave (substitui "Vencedor(A x B)")
+  const propagarVencedor = async (jogoDecidido: Jogo, vencedor: string) => {
+    const placeholder = `Vencedor(${jogoDecidido.participanteA} x ${jogoDecidido.participanteB})`;
+    const proximos = jogos.filter(
+      j => (j.modalidade || '').toUpperCase() === (jogoDecidido.modalidade || '').toUpperCase() &&
+        j.rodada > jogoDecidido.rodada &&
+        (j.participanteA === placeholder || j.participanteB === placeholder)
+    );
+    for (const p of proximos) {
+      const patch: Partial<Jogo> = {};
+      if (p.participanteA === placeholder) patch.participanteA = vencedor;
+      if (p.participanteB === placeholder) patch.participanteB = vencedor;
+      updateJogo(p.id, patch);
+      if (competitionId && isUuid(p.id)) {
+        try {
+          await supabase.from('competition_matches').update({
+            participante_a: patch.participanteA ?? p.participanteA,
+            participante_b: patch.participanteB ?? p.participanteB,
+          }).eq('id', p.id);
+        } catch { /* segue */ }
+      }
+    }
+  };
+
   const liveUpdate = async (jogoId: string, a: number, b: number) => {
     if (!competitionId || !isUuid(jogoId)) {
       toast({ title: 'Salve o evento primeiro', description: 'As alterações no placar só podem ser feitas após clicar em "Salvar evento".', variant: 'destructive' });
@@ -42,6 +66,13 @@ const Stage6Summary = () => {
     try {
       setSavingScore(jogoId);
       await updateMatchScore(jogoId, a, b);
+      if (a !== b) {
+        const jogo = jogos.find(j => j.id === jogoId);
+        if (jogo) {
+          const vencedor = a > b ? jogo.participanteA : jogo.participanteB;
+          await propagarVencedor(jogo, vencedor);
+        }
+      }
     } catch (err: any) {
       toast({ title: 'Erro ao salvar placar', description: err.message, variant: 'destructive' });
     } finally {
