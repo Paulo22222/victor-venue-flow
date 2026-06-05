@@ -130,8 +130,7 @@ const Stage6Summary = () => {
     if (!ctx) return null;
     const regra = getSportRule(ctx.mod);
     const handle = async () => {
-      // Para cada jogo sem resultado, decreta vencedor 1x0 (ou conforme regra)
-      const placarVencedor = regra.passoIncremento; // 1 para futsal/handebol; vôlei = 1 set
+      const placarVencedor = Math.max(1, regra.passoIncremento);
       for (const j of matches) {
         const w = winners[j.id];
         if (!w) {
@@ -144,8 +143,10 @@ const Stage6Summary = () => {
         if (competitionId && isUuid(j.id)) {
           try { await updateMatchScore(j.id, a, b); } catch { /* keep going */ }
         }
+        const vencedor = w === 'A' ? j.participanteA : j.participanteB;
+        await propagarVencedor(j, vencedor);
       }
-      toast({ title: `Rodada ${ctx.rodada} finalizada!`, description: `${matches.length} jogo(s) decididos.` });
+      toast({ title: `Rodada ${ctx.rodada} finalizada!`, description: `${matches.length} jogo(s) decididos · vencedores avançaram.` });
       setFinalizeRound(null);
     };
     return (
