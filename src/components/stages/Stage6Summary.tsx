@@ -33,6 +33,30 @@ const Stage6Summary = () => {
       .then(({ data }) => setVenues((data ?? []) as any));
   }, []);
 
+  // Propaga vencedor para o próximo jogo da chave (substitui "Vencedor(A x B)")
+  const propagarVencedor = async (jogoDecidido: Jogo, vencedor: string) => {
+    const placeholder = `Vencedor(${jogoDecidido.participanteA} x ${jogoDecidido.participanteB})`;
+    const proximos = jogos.filter(
+      j => (j.modalidade || '').toUpperCase() === (jogoDecidido.modalidade || '').toUpperCase() &&
+        j.rodada > jogoDecidido.rodada &&
+        (j.participanteA === placeholder || j.participanteB === placeholder)
+    );
+    for (const p of proximos) {
+      const patch: Partial<Jogo> = {};
+      if (p.participanteA === placeholder) patch.participanteA = vencedor;
+      if (p.participanteB === placeholder) patch.participanteB = vencedor;
+      updateJogo(p.id, patch);
+      if (competitionId && isUuid(p.id)) {
+        try {
+          await supabase.from('competition_matches').update({
+            participante_a: patch.participanteA ?? p.participanteA,
+            participante_b: patch.participanteB ?? p.participanteB,
+          }).eq('id', p.id);
+        } catch { /* segue */ }
+      }
+    }
+  };
+
   const liveUpdate = async (jogoId: string, a: number, b: number) => {
     if (!competitionId || !isUuid(jogoId)) {
       toast({ title: 'Salve o evento primeiro', description: 'As alterações no placar só podem ser feitas após clicar em "Salvar evento".', variant: 'destructive' });
@@ -42,6 +66,13 @@ const Stage6Summary = () => {
     try {
       setSavingScore(jogoId);
       await updateMatchScore(jogoId, a, b);
+      if (a !== b) {
+        const jogo = jogos.find(j => j.id === jogoId);
+        if (jogo) {
+          const vencedor = a > b ? jogo.participanteA : jogo.participanteB;
+          await propagarVencedor(jogo, vencedor);
+        }
+      }
     } catch (err: any) {
       toast({ title: 'Erro ao salvar placar', description: err.message, variant: 'destructive' });
     } finally {
@@ -99,8 +130,7 @@ const Stage6Summary = () => {
     if (!ctx) return null;
     const regra = getSportRule(ctx.mod);
     const handle = async () => {
-      // Para cada jogo sem resultado, decreta vencedor 1x0 (ou conforme regra)
-      const placarVencedor = regra.passoIncremento; // 1 para futsal/handebol; vôlei = 1 set
+      const placarVencedor = Math.max(1, regra.passoIncremento);
       for (const j of matches) {
         const w = winners[j.id];
         if (!w) {
@@ -113,8 +143,10 @@ const Stage6Summary = () => {
         if (competitionId && isUuid(j.id)) {
           try { await updateMatchScore(j.id, a, b); } catch { /* keep going */ }
         }
+        const vencedor = w === 'A' ? j.participanteA : j.participanteB;
+        await propagarVencedor(j, vencedor);
       }
-      toast({ title: `Rodada ${ctx.rodada} finalizada!`, description: `${matches.length} jogo(s) decididos.` });
+      toast({ title: `Rodada ${ctx.rodada} finalizada!`, description: `${matches.length} jogo(s) decididos · vencedores avançaram.` });
       setFinalizeRound(null);
     };
     return (
@@ -361,40 +393,66 @@ const Stage6Summary = () => {
                 );
               })}
 
-              {/* Chaveamento com placar editável + finalizar rodada */}
-              <Card>
-                <CardContent className="p-5">
-                  <h3 className="font-heading font-semibold mb-3 flex items-center gap-2">
-                    <Radio className="w-4 h-4 text-destructive animate-pulse" /> Placares ao vivo — {m.nome}
+              {/* Chaveamento gráfico com placar editável + finalizar rodada */}
+              <Card className="overflow-hidden">
+                <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b px-5 py-3 flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-heading font-semibold flex items-center gap-2">
+                    <Radio className="w-4 h-4 text-destructive animate-pulse" />
+                    Chaveamento ao vivo — {m.nome}
                   </h3>
+                  <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">
+                    {regra.descricaoPontuacao}
+                  </span>
+                </div>
+                <CardContent className="p-5">
                   {rkeys.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Nenhum jogo gerado para esta modalidade.</p>
                   ) : (
-                    <div className="space-y-5">
+                    <div className="space-y-6">
                       {rkeys.map(r => {
                         const pendentes = rounds[r].filter(j => !resultados[j.id]).length;
+                        const total = rounds[r].length;
+                        const completos = total - pendentes;
                         return (
-                          <div key={r}>
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="text-xs font-bold text-primary tracking-wider">RODADA {r}</div>
+                          <div key={r} className="relative">
+                            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-md">
+                                  {r}
+                                </div>
+                                <div>
+                                  <div className="font-heading font-bold text-sm tracking-wide">RODADA {r}</div>
+                                  <div className="text-[11px] text-muted-foreground">{completos}/{total} concluídos</div>
+                                </div>
+                              </div>
                               {!state.finalizado && pendentes > 0 && (
                                 <Button
-                                  size="sm" variant="outline"
-                                  className="h-7 gap-1.5 text-xs"
+                                  size="sm"
+                                  className="gradient-primary text-primary-foreground gap-2 shadow-md"
                                   onClick={() => setFinalizeRound({ mod: m.nome, rodada: r })}
                                 >
-                                  <Flag className="w-3 h-3" /> Finalizar rodada ({pendentes})
+                                  <Flag className="w-4 h-4" /> Finalizar rodada · {pendentes} pendente{pendentes > 1 ? 's' : ''}
                                 </Button>
                               )}
+                              {!state.finalizado && pendentes === 0 && total > 0 && (
+                                <Badge variant="default" className="bg-success text-success-foreground gap-1">
+                                  <CheckCircle2 className="w-3 h-3" /> Rodada concluída
+                                </Badge>
+                              )}
                             </div>
-                            <div className="grid gap-2 md:grid-cols-2">
+                            <div className="grid gap-3 md:grid-cols-2">
                               {rounds[r].map(j => {
                                 const cur = resultados[j.id] || { placarA: 0, placarB: 0 };
                                 const decided = !!resultados[j.id];
                                 const winA = decided && cur.placarA > cur.placarB;
                                 const winB = decided && cur.placarB > cur.placarA;
                                 return (
-                                  <div key={j.id} className="rounded-lg border bg-card p-3 space-y-2">
+                                  <div
+                                    key={j.id}
+                                    className={`rounded-xl border-2 bg-card p-4 space-y-2 transition-all hover:shadow-md ${
+                                      decided ? 'border-primary/40' : 'border-border'
+                                    }`}
+                                  >
                                     <ScoreRow
                                       name={j.participanteA}
                                       value={cur.placarA}
@@ -404,7 +462,11 @@ const Stage6Summary = () => {
                                       rule={regra}
                                       disabled={state.finalizado}
                                     />
-                                    <div className="border-t" />
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex-1 border-t border-dashed" />
+                                      <span className="text-[10px] font-bold text-muted-foreground tracking-widest">VS</span>
+                                      <div className="flex-1 border-t border-dashed" />
+                                    </div>
                                     <ScoreRow
                                       name={j.participanteB}
                                       value={cur.placarB}
@@ -414,7 +476,7 @@ const Stage6Summary = () => {
                                       rule={regra}
                                       disabled={state.finalizado}
                                     />
-                                    <div className="flex items-center justify-between pt-1 text-[11px] text-muted-foreground border-t">
+                                    <div className="flex items-center justify-between pt-2 text-[11px] text-muted-foreground border-t">
                                       <div className="flex items-center gap-2 flex-wrap min-w-0">
                                         {(j.data || j.horario) && (
                                           <span className="inline-flex items-center gap-1"><CalendarClock className="w-3 h-3" />{j.data ? new Date(j.data + 'T00:00:00').toLocaleDateString('pt-BR') : '—'} {j.horario || ''}</span>
