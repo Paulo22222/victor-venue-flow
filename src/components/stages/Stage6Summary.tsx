@@ -128,7 +128,7 @@ const Stage6Summary = () => {
   const FinalizeRoundDialog = () => {
     const [winners, setWinners] = useState<Record<string, 'A' | 'B'>>({});
     const ctx = finalizeRound;
-    const matches = useMemo(() => ctx ? jogosPorMod(ctx.mod).filter(j => j.rodada === ctx.rodada && !resultados[j.id]) : [], [ctx]);
+    const matches = useMemo(() => ctx ? jogosPorMod(ctx.mod).filter(j => j.rodada === ctx.rodada && !resultados[j.id] && !isPending(j.participanteA) && !isPending(j.participanteB)) : [], [ctx]);
     if (!ctx) return null;
     const regra = getSportRule(ctx.mod);
     const handle = async () => {
