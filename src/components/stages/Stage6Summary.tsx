@@ -445,26 +445,29 @@ const Stage6Summary = () => {
                               )}
                             </div>
                             <div className="grid gap-3 md:grid-cols-2">
-                              {rounds[r].map(j => {
+                              {visibleMatches.map(j => {
                                 const cur = resultados[j.id] || { placarA: 0, placarB: 0 };
                                 const decided = !!resultados[j.id];
+                                const pendingA = isPending(j.participanteA);
+                                const pendingB = isPending(j.participanteB);
+                                const aguardando = pendingA || pendingB;
                                 const winA = decided && cur.placarA > cur.placarB;
                                 const winB = decided && cur.placarB > cur.placarA;
                                 return (
                                   <div
                                     key={j.id}
                                     className={`rounded-xl border-2 bg-card p-4 space-y-2 transition-all hover:shadow-md ${
-                                      decided ? 'border-primary/40' : 'border-border'
+                                      decided ? 'border-primary/40' : aguardando ? 'border-dashed border-muted-foreground/30' : 'border-border'
                                     }`}
                                   >
                                     <ScoreRow
-                                      name={j.participanteA}
+                                      name={displayName(j.participanteA)}
                                       value={cur.placarA}
                                       winner={winA}
                                       loading={savingScore === j.id}
                                       onChange={(v) => liveUpdate(j.id, v, cur.placarB)}
                                       rule={regra}
-                                      disabled={state.finalizado}
+                                      disabled={state.finalizado || aguardando}
                                     />
                                     <div className="flex items-center gap-2">
                                       <div className="flex-1 border-t border-dashed" />
@@ -472,13 +475,13 @@ const Stage6Summary = () => {
                                       <div className="flex-1 border-t border-dashed" />
                                     </div>
                                     <ScoreRow
-                                      name={j.participanteB}
+                                      name={displayName(j.participanteB)}
                                       value={cur.placarB}
                                       winner={winB}
                                       loading={savingScore === j.id}
                                       onChange={(v) => liveUpdate(j.id, cur.placarA, v)}
                                       rule={regra}
-                                      disabled={state.finalizado}
+                                      disabled={state.finalizado || aguardando}
                                     />
                                     <div className="flex items-center justify-between pt-2 text-[11px] text-muted-foreground border-t">
                                       <div className="flex items-center gap-2 flex-wrap min-w-0">
