@@ -213,29 +213,37 @@ const RankingTable = ({ titulo, ranking }: { titulo: string; ranking: [string, a
   </Card>
 );
 
+const isPending = (name?: string) => !name || name.startsWith('Vencedor(');
+const displayName = (name?: string) => (isPending(name) ? 'Aguardando adversário' : name!);
+
 const Bracket = ({ matches }: { matches: Match[] }) => {
   const rounds = matches.reduce<Record<number, Match[]>>((acc, m) => { (acc[m.rodada] ||= []).push(m); return acc; }, {});
   const rkeys = Object.keys(rounds).map(Number).sort((a, b) => a - b);
+  const visibleByRound: Record<number, Match[]> = {};
+  rkeys.forEach(r => {
+    visibleByRound[r] = rounds[r].filter(m => !(isPending(m.participante_a) && isPending(m.participante_b)));
+  });
+  const visibleKeys = rkeys.filter(r => visibleByRound[r].length > 0);
   return (
     <Card>
       <CardHeader><CardTitle className="text-lg">Chaveamento e resultados</CardTitle></CardHeader>
       <CardContent>
-        {matches.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum jogo gerado ainda.</p> : (
+        {visibleKeys.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum jogo gerado ainda.</p> : (
           <div className="overflow-x-auto pb-2">
             <div className="flex gap-6 min-w-max">
-              {rkeys.map(r => (
+              {visibleKeys.map(r => (
                 <div key={r} className="flex flex-col gap-3 min-w-[240px]">
                   <div className="text-xs font-bold text-primary tracking-wider">RODADA {r}</div>
                   <div className="flex flex-col gap-3 justify-around flex-1">
-                    {rounds[r].map(m => {
+                    {visibleByRound[r].map(m => {
                       const decided = m.placar_a != null && m.placar_b != null;
                       const winA = decided && (m.placar_a! > m.placar_b!);
                       const winB = decided && (m.placar_b! > m.placar_a!);
                       return (
                         <div key={m.id} className="rounded-lg border bg-card overflow-hidden shadow-sm">
-                          <Row name={m.participante_a} score={m.placar_a} winner={winA} />
+                          <Row name={displayName(m.participante_a)} score={m.placar_a} winner={winA} />
                           <div className="border-t border-border" />
-                          <Row name={m.participante_b} score={m.placar_b} winner={winB} />
+                          <Row name={displayName(m.participante_b)} score={m.placar_b} winner={winB} />
                         </div>
                       );
                     })}
