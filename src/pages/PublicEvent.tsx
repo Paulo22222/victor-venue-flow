@@ -36,7 +36,7 @@ const PublicEvent = () => {
   const fetchAll = async () => {
     if (!id) return;
     const [{ data: c }, { data: m }, { data: mods }, { data: selected }] = await Promise.all([
-      supabase.from('competitions').select('*').eq('id', id).maybeSingle(),
+      supabase.from('competitions').select('id, nome, data, modalidade, local, finalizado').eq('id', id).maybeSingle(),
       supabase.from('competition_matches').select('*').eq('competition_id', id).order('rodada'),
       supabase.from('competition_modalities').select('id,nome').eq('competition_id', id),
       supabase.from('competition_selected_teams').select('organizer_team_id, modalidade').eq('competition_id', id),
