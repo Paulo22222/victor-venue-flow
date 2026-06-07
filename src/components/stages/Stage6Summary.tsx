@@ -17,6 +17,8 @@ import { toast } from '@/hooks/use-toast';
 import type { Jogo } from '@/types/competition';
 
 const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+const isPending = (name?: string) => !name || name.startsWith('Vencedor(');
+const displayName = (name?: string) => (isPending(name) ? 'Aguardando adversário' : name!);
 
 const Stage6Summary = () => {
   const { state, competitionId, save, saving, finalize, updateResultado, updateJogo, setStep } = useCompetition();
@@ -126,7 +128,7 @@ const Stage6Summary = () => {
   const FinalizeRoundDialog = () => {
     const [winners, setWinners] = useState<Record<string, 'A' | 'B'>>({});
     const ctx = finalizeRound;
-    const matches = useMemo(() => ctx ? jogosPorMod(ctx.mod).filter(j => j.rodada === ctx.rodada && !resultados[j.id]) : [], [ctx]);
+    const matches = useMemo(() => ctx ? jogosPorMod(ctx.mod).filter(j => j.rodada === ctx.rodada && !resultados[j.id] && !isPending(j.participanteA) && !isPending(j.participanteB)) : [], [ctx]);
     if (!ctx) return null;
     const regra = getSportRule(ctx.mod);
     const handle = async () => {
@@ -410,9 +412,11 @@ const Stage6Summary = () => {
                   ) : (
                     <div className="space-y-6">
                       {rkeys.map(r => {
-                        const pendentes = rounds[r].filter(j => !resultados[j.id]).length;
-                        const total = rounds[r].length;
-                        const completos = total - pendentes;
+                        const visibleMatches = rounds[r].filter(j => !(isPending(j.participanteA) && isPending(j.participanteB)));
+                        if (visibleMatches.length === 0) return null;
+                        const pendentes = visibleMatches.filter(j => !resultados[j.id] && !isPending(j.participanteA) && !isPending(j.participanteB)).length;
+                        const total = visibleMatches.length;
+                        const completos = visibleMatches.filter(j => !!resultados[j.id]).length;
                         return (
                           <div key={r} className="relative">
                             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -441,26 +445,29 @@ const Stage6Summary = () => {
                               )}
                             </div>
                             <div className="grid gap-3 md:grid-cols-2">
-                              {rounds[r].map(j => {
+                              {visibleMatches.map(j => {
                                 const cur = resultados[j.id] || { placarA: 0, placarB: 0 };
                                 const decided = !!resultados[j.id];
+                                const pendingA = isPending(j.participanteA);
+                                const pendingB = isPending(j.participanteB);
+                                const aguardando = pendingA || pendingB;
                                 const winA = decided && cur.placarA > cur.placarB;
                                 const winB = decided && cur.placarB > cur.placarA;
                                 return (
                                   <div
                                     key={j.id}
                                     className={`rounded-xl border-2 bg-card p-4 space-y-2 transition-all hover:shadow-md ${
-                                      decided ? 'border-primary/40' : 'border-border'
+                                      decided ? 'border-primary/40' : aguardando ? 'border-dashed border-muted-foreground/30' : 'border-border'
                                     }`}
                                   >
                                     <ScoreRow
-                                      name={j.participanteA}
+                                      name={displayName(j.participanteA)}
                                       value={cur.placarA}
                                       winner={winA}
                                       loading={savingScore === j.id}
                                       onChange={(v) => liveUpdate(j.id, v, cur.placarB)}
                                       rule={regra}
-                                      disabled={state.finalizado}
+                                      disabled={state.finalizado || aguardando}
                                     />
                                     <div className="flex items-center gap-2">
                                       <div className="flex-1 border-t border-dashed" />
@@ -468,13 +475,13 @@ const Stage6Summary = () => {
                                       <div className="flex-1 border-t border-dashed" />
                                     </div>
                                     <ScoreRow
-                                      name={j.participanteB}
+                                      name={displayName(j.participanteB)}
                                       value={cur.placarB}
                                       winner={winB}
                                       loading={savingScore === j.id}
                                       onChange={(v) => liveUpdate(j.id, cur.placarA, v)}
                                       rule={regra}
-                                      disabled={state.finalizado}
+                                      disabled={state.finalizado || aguardando}
                                     />
                                     <div className="flex items-center justify-between pt-2 text-[11px] text-muted-foreground border-t">
                                       <div className="flex items-center gap-2 flex-wrap min-w-0">
