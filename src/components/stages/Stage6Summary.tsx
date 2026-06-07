@@ -17,6 +17,8 @@ import { toast } from '@/hooks/use-toast';
 import type { Jogo } from '@/types/competition';
 
 const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+const isPending = (name?: string) => !name || name.startsWith('Vencedor(');
+const displayName = (name?: string) => (isPending(name) ? 'Aguardando adversário' : name!);
 
 const Stage6Summary = () => {
   const { state, competitionId, save, saving, finalize, updateResultado, updateJogo, setStep } = useCompetition();
