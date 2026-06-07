@@ -133,12 +133,16 @@ const Stage6Summary = () => {
     const regra = getSportRule(ctx.mod);
     const handle = async () => {
       const placarVencedor = Math.max(1, regra.passoIncremento);
+      // Valida antes
       for (const j of matches) {
-        const w = winners[j.id];
-        if (!w) {
+        if (!winners[j.id]) {
           toast({ title: 'Selecione o vencedor de todos os jogos', variant: 'destructive' });
           return;
         }
+      }
+      // Aplica resultados em paralelo (estado + DB)
+      await Promise.all(matches.map(async (j) => {
+        const w = winners[j.id]!;
         const a = w === 'A' ? placarVencedor : 0;
         const b = w === 'B' ? placarVencedor : 0;
         updateResultado(j.id, a, b);
@@ -147,7 +151,7 @@ const Stage6Summary = () => {
         }
         const vencedor = w === 'A' ? j.participanteA : j.participanteB;
         await propagarVencedor(j, vencedor);
-      }
+      }));
       toast({ title: `Rodada ${ctx.rodada} finalizada!`, description: `${matches.length} jogo(s) decididos · vencedores avançaram.` });
       setFinalizeRound(null);
     };
