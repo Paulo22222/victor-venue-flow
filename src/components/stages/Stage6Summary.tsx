@@ -412,10 +412,11 @@ const Stage6Summary = () => {
                   ) : (
                     <div className="space-y-6">
                       {rkeys.map(r => {
-                        const pendentes = rounds[r].filter(j => !resultados[j.id]).length;
-                        const total = rounds[r].length;
-                        const completos = total - pendentes;
-                        return (
+                        const visibleMatches = rounds[r].filter(j => !(isPending(j.participanteA) && isPending(j.participanteB)));
+                        if (visibleMatches.length === 0) return null;
+                        const pendentes = visibleMatches.filter(j => !resultados[j.id] && !isPending(j.participanteA) && !isPending(j.participanteB)).length;
+                        const total = visibleMatches.length;
+                        const completos = visibleMatches.filter(j => !!resultados[j.id]).length;
                           <div key={r} className="relative">
                             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                               <div className="flex items-center gap-3">
