@@ -78,6 +78,7 @@ export interface Jogo {
   local?: string;
   modalidade?: string;
   esporte?: string;
+  finalizada?: boolean;
 }
 
 export interface CompetitionState {

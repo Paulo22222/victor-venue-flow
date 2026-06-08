@@ -161,6 +161,7 @@ export async function saveCompetition(state: CompetitionState, existingId?: stri
       participante_b: j.participanteB,
       placar_a: state.resultados[j.id]?.placarA ?? j.placarA ?? null,
       placar_b: state.resultados[j.id]?.placarB ?? j.placarB ?? null,
+      finalizada: j.finalizada ?? false,
       data: j.data || null,
       horario: j.horario || null,
       local: j.local || null,
@@ -239,6 +240,7 @@ export async function loadCompetition(id: string): Promise<CompetitionState> {
     horario: m.horario || undefined, local: m.local || undefined,
     modalidade: m.modalidade || undefined,
     esporte: m.esporte || undefined,
+    finalizada: (m as any).finalizada ?? false,
   }));
 
   const resultados: Record<string, { placarA: number; placarB: number }> = {};
@@ -322,3 +324,12 @@ export async function updateMatchSchedule(
   if (error) throw error;
 }
 
+
+// Marca uma partida como finalizada (confirmação manual do administrador)
+export async function finalizeMatch(matchId: string, finalizada = true): Promise<void> {
+  const { error } = await supabase
+    .from('competition_matches')
+    .update({ finalizada } as any)
+    .eq('id', matchId);
+  if (error) throw error;
+}
