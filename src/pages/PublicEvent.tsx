@@ -240,14 +240,35 @@ const Bracket = ({ matches }: { matches: Match[] }) => {
                   <div className="text-xs font-bold text-primary tracking-wider">RODADA {r}</div>
                   <div className="flex flex-col gap-3 justify-around flex-1">
                     {visibleByRound[r].map(m => {
-                      const decided = m.placar_a != null && m.placar_b != null;
-                      const winA = decided && (m.placar_a! > m.placar_b!);
-                      const winB = decided && (m.placar_b! > m.placar_a!);
+                      const finalizada = !!m.finalizada;
+                      const hasScore = m.placar_a != null && m.placar_b != null;
+                      const winA = finalizada && hasScore && (m.placar_a! > m.placar_b!);
+                      const winB = finalizada && hasScore && (m.placar_b! > m.placar_a!);
                       return (
                         <div key={m.id} className="rounded-lg border bg-card overflow-hidden shadow-sm">
                           <Row name={displayName(m.participante_a)} score={m.placar_a} winner={winA} />
                           <div className="border-t border-border" />
                           <Row name={displayName(m.participante_b)} score={m.placar_b} winner={winB} />
+                          {(m.data || m.horario || m.local || (hasScore && !finalizada)) && (
+                            <div className="border-t border-border px-3 py-1.5 bg-muted/30 text-[11px] text-muted-foreground flex items-center justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                {(m.data || m.horario) && (
+                                  <span className="inline-flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
+                                    {m.data ? new Date(m.data + 'T00:00:00').toLocaleDateString('pt-BR') : ''} {m.horario || ''}
+                                  </span>
+                                )}
+                                {m.local && (
+                                  <span className="inline-flex items-center gap-1 truncate">
+                                    <MapPin className="w-3 h-3" /> {m.local}
+                                  </span>
+                                )}
+                              </div>
+                              {hasScore && !finalizada && (
+                                <span className="text-amber-600 dark:text-amber-400 font-medium">Aguardando confirmação</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
