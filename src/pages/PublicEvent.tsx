@@ -15,8 +15,9 @@ interface Competition {
 }
 interface Match {
   id: string; rodada: number; participante_a: string; participante_b: string;
-  placar_a: number | null; placar_b: number | null; horario: string | null;
+  placar_a: number | null; placar_b: number | null; data: string | null; horario: string | null;
   local: string | null; modalidade: string | null; esporte: string | null;
+  finalizada: boolean | null;
 }
 interface Modality { id: string; nome: string; }
 // nome+modalidade -> genero
