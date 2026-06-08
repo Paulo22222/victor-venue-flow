@@ -239,6 +239,7 @@ export async function loadCompetition(id: string): Promise<CompetitionState> {
     horario: m.horario || undefined, local: m.local || undefined,
     modalidade: m.modalidade || undefined,
     esporte: m.esporte || undefined,
+    finalizada: (m as any).finalizada ?? false,
   }));
 
   const resultados: Record<string, { placarA: number; placarB: number }> = {};
