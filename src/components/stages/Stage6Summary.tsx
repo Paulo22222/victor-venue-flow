@@ -184,15 +184,19 @@ const Stage6Summary = () => {
           return;
         }
       }
-      // Aplica resultados em paralelo (estado + DB)
+      // Aplica resultados em paralelo (estado + DB) e finaliza cada partida
       await Promise.all(matches.map(async (j) => {
         const w = winners[j.id]!;
         const a = w === 'A' ? placarVencedor : 0;
         const b = w === 'B' ? placarVencedor : 0;
         updateResultado(j.id, a, b);
         if (competitionId && isUuid(j.id)) {
-          try { await updateMatchScore(j.id, a, b); } catch { /* keep going */ }
+          try {
+            await updateMatchScore(j.id, a, b);
+            await finalizeMatch(j.id, true);
+          } catch { /* keep going */ }
         }
+        updateJogo(j.id, { finalizada: true });
         const vencedor = w === 'A' ? j.participanteA : j.participanteB;
         await propagarVencedor(j, vencedor);
       }));
