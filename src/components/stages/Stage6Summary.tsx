@@ -135,8 +135,12 @@ const Stage6Summary = () => {
     const eqs = competidores.equipes.filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase() && (e.genero || 'misto') === genero);
     eqs.forEach(e => { tabela[e.nome] = { p: 0, v: 0, e: 0, d: 0, sg: 0 }; });
     jogosPorMod(mod).forEach(j => {
+      // Classificação só conta partidas oficialmente finalizadas pelo administrador
+      if (!j.finalizada) return;
       const r = resultados[j.id];
       if (!r) return;
+      // Ignorar placeholders (Vencedor(...)) — só equipes reais entram
+      if (isPending(j.participanteA) || isPending(j.participanteB)) return;
       // Considerar apenas jogos onde ambas equipes pertencem ao gênero
       if (!tabela[j.participanteA] || !tabela[j.participanteB]) return;
       const { a, b } = pontosRanking(r.placarA, r.placarB, regra);
