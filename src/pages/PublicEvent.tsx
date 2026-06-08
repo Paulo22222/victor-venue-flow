@@ -85,6 +85,9 @@ const PublicEvent = () => {
     filtered.forEach(m => {
       const mod = m.modalidade || activeMod;
       if (activeMod !== 'all' && (m.modalidade || '').toUpperCase() !== activeMod.toUpperCase()) return;
+      // Ignora placeholders e partidas não finalizadas oficialmente
+      if (isPending(m.participante_a) || isPending(m.participante_b)) return;
+      if (!m.finalizada) return;
       const gA = generoDe(m.participante_a, mod);
       const gB = generoDe(m.participante_b, mod);
       if (gA !== genero || gB !== genero) return;
