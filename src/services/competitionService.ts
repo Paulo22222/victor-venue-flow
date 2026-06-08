@@ -323,3 +323,12 @@ export async function updateMatchSchedule(
   if (error) throw error;
 }
 
+
+// Marca uma partida como finalizada (confirmação manual do administrador)
+export async function finalizeMatch(matchId: string, finalizada = true): Promise<void> {
+  const { error } = await supabase
+    .from('competition_matches')
+    .update({ finalizada } as any)
+    .eq('id', matchId);
+  if (error) throw error;
+}
