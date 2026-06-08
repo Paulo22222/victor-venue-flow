@@ -115,6 +115,7 @@ export type Database = {
           created_at: string
           data: string | null
           esporte: string | null
+          finalizada: boolean
           horario: string | null
           id: string
           local: string | null
@@ -130,6 +131,7 @@ export type Database = {
           created_at?: string
           data?: string | null
           esporte?: string | null
+          finalizada?: boolean
           horario?: string | null
           id?: string
           local?: string | null
@@ -145,6 +147,7 @@ export type Database = {
           created_at?: string
           data?: string | null
           esporte?: string | null
+          finalizada?: boolean
           horario?: string | null
           id?: string
           local?: string | null
