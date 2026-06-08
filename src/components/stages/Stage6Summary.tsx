@@ -466,9 +466,10 @@ const Stage6Summary = () => {
                       {rkeys.map(r => {
                         const visibleMatches = rounds[r].filter(j => !(isPending(j.participanteA) && isPending(j.participanteB)));
                         if (visibleMatches.length === 0) return null;
-                        const pendentes = visibleMatches.filter(j => !resultados[j.id] && !isPending(j.participanteA) && !isPending(j.participanteB)).length;
-                        const total = visibleMatches.length;
-                        const completos = visibleMatches.filter(j => !!resultados[j.id]).length;
+                        const elegiveis = visibleMatches.filter(j => !isPending(j.participanteA) && !isPending(j.participanteB));
+                        const total = elegiveis.length;
+                        const finalizadas = elegiveis.filter(j => j.finalizada).length;
+                        const aFinalizar = elegiveis.filter(j => !j.finalizada).length;
                         return (
                           <div key={r} className="relative">
                             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -478,19 +479,20 @@ const Stage6Summary = () => {
                                 </div>
                                 <div>
                                   <div className="font-heading font-bold text-sm tracking-wide">RODADA {r}</div>
-                                  <div className="text-[11px] text-muted-foreground">{completos}/{total} concluídos</div>
+                                  <div className="text-[11px] text-muted-foreground">{finalizadas}/{total} finalizadas</div>
                                 </div>
                               </div>
-                              {!state.finalizado && pendentes > 0 && (
+                              {!state.finalizado && aFinalizar > 0 && total > 0 && (
                                 <Button
                                   size="sm"
-                                  className="gradient-primary text-primary-foreground gap-2 shadow-md"
+                                  variant="outline"
+                                  className="gap-2"
                                   onClick={() => setFinalizeRound({ mod: m.nome, rodada: r })}
                                 >
-                                  <Flag className="w-4 h-4" /> Finalizar rodada · {pendentes} pendente{pendentes > 1 ? 's' : ''}
+                                  <Flag className="w-4 h-4" /> Encerrar rodada em lote
                                 </Button>
                               )}
-                              {!state.finalizado && pendentes === 0 && total > 0 && (
+                              {!state.finalizado && aFinalizar === 0 && total > 0 && (
                                 <Badge variant="default" className="bg-success text-success-foreground gap-1">
                                   <CheckCircle2 className="w-3 h-3" /> Rodada concluída
                                 </Badge>
@@ -499,19 +501,37 @@ const Stage6Summary = () => {
                             <div className="grid gap-3 md:grid-cols-2">
                               {visibleMatches.map(j => {
                                 const cur = resultados[j.id] || { placarA: 0, placarB: 0 };
-                                const decided = !!resultados[j.id];
+                                const placarRegistrado = !!resultados[j.id];
                                 const pendingA = isPending(j.participanteA);
                                 const pendingB = isPending(j.participanteB);
                                 const aguardando = pendingA || pendingB;
-                                const winA = decided && cur.placarA > cur.placarB;
-                                const winB = decided && cur.placarB > cur.placarA;
+                                const finalizada = !!j.finalizada;
+                                const winA = finalizada && cur.placarA > cur.placarB;
+                                const winB = finalizada && cur.placarB > cur.placarA;
+                                const podeFinalizar = !state.finalizado && !aguardando && !finalizada && placarRegistrado && cur.placarA !== cur.placarB;
+                                let statusLabel = 'Aguardando';
+                                let statusColor = 'bg-muted text-muted-foreground';
+                                if (finalizada) { statusLabel = 'Finalizada'; statusColor = 'bg-success text-success-foreground'; }
+                                else if (placarRegistrado) { statusLabel = 'Aguardando confirmação'; statusColor = 'bg-amber-500/15 text-amber-700 dark:text-amber-400'; }
+                                else if (j.data || j.horario) { statusLabel = 'Agendada'; statusColor = 'bg-primary/10 text-primary'; }
                                 return (
                                   <div
                                     key={j.id}
                                     className={`rounded-xl border-2 bg-card p-4 space-y-2 transition-all hover:shadow-md ${
-                                      decided ? 'border-primary/40' : aguardando ? 'border-dashed border-muted-foreground/30' : 'border-border'
+                                      finalizada ? 'border-success/50' : placarRegistrado ? 'border-amber-500/40' : aguardando ? 'border-dashed border-muted-foreground/30' : 'border-border'
                                     }`}
                                   >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <Badge variant="outline" className={`text-[10px] uppercase tracking-wider ${statusColor} border-0`}>
+                                        {finalizada && <Lock className="w-3 h-3 mr-1 inline" />}
+                                        {statusLabel}
+                                      </Badge>
+                                      {finalizada && !state.finalizado && (
+                                        <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => reabrirPartida(j)}>
+                                          Reabrir
+                                        </Button>
+                                      )}
+                                    </div>
                                     <ScoreRow
                                       name={displayName(j.participanteA)}
                                       value={cur.placarA}
@@ -519,7 +539,7 @@ const Stage6Summary = () => {
                                       loading={savingScore === j.id}
                                       onChange={(v) => liveUpdate(j.id, v, cur.placarB)}
                                       rule={regra}
-                                      disabled={state.finalizado || aguardando}
+                                      disabled={state.finalizado || aguardando || finalizada}
                                     />
                                     <div className="flex items-center gap-2">
                                       <div className="flex-1 border-t border-dashed" />
@@ -533,8 +553,17 @@ const Stage6Summary = () => {
                                       loading={savingScore === j.id}
                                       onChange={(v) => liveUpdate(j.id, cur.placarA, v)}
                                       rule={regra}
-                                      disabled={state.finalizado || aguardando}
+                                      disabled={state.finalizado || aguardando || finalizada}
                                     />
+                                    {podeFinalizar && (
+                                      <Button
+                                        size="sm"
+                                        className="w-full gradient-primary text-primary-foreground gap-2"
+                                        onClick={() => confirmarPartida(j)}
+                                      >
+                                        <CheckCircle2 className="w-4 h-4" /> Finalizar partida
+                                      </Button>
+                                    )}
                                     <div className="flex items-center justify-between pt-2 text-[11px] text-muted-foreground border-t">
                                       <div className="flex items-center gap-2 flex-wrap min-w-0">
                                         {(j.data || j.horario) && (
@@ -543,7 +572,7 @@ const Stage6Summary = () => {
                                         {j.local && <span className="inline-flex items-center gap-1 truncate"><MapPin className="w-3 h-3" />{j.local}</span>}
                                         {!j.data && !j.horario && !j.local && <span className="italic">Não agendado</span>}
                                       </div>
-                                      {!state.finalizado && (
+                                      {!state.finalizado && !finalizada && (
                                         <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => setRescheduleJogo(j)}>
                                           <CalendarClock className="w-3 h-3" /> Agendar
                                         </Button>
