@@ -161,6 +161,7 @@ export async function saveCompetition(state: CompetitionState, existingId?: stri
       participante_b: j.participanteB,
       placar_a: state.resultados[j.id]?.placarA ?? j.placarA ?? null,
       placar_b: state.resultados[j.id]?.placarB ?? j.placarB ?? null,
+      finalizada: j.finalizada ?? false,
       data: j.data || null,
       horario: j.horario || null,
       local: j.local || null,
