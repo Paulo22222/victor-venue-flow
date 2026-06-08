@@ -64,21 +64,61 @@ const Stage6Summary = () => {
       toast({ title: 'Salve o evento primeiro', description: 'As alterações no placar só podem ser feitas após clicar em "Salvar evento".', variant: 'destructive' });
       return;
     }
+    const jogo = jogos.find(j => j.id === jogoId);
+    if (jogo?.finalizada) {
+      toast({ title: 'Partida finalizada', description: 'Para alterar o placar, reabra a partida.', variant: 'destructive' });
+      return;
+    }
     updateResultado(jogoId, a, b);
     try {
       setSavingScore(jogoId);
       await updateMatchScore(jogoId, a, b);
-      if (a !== b) {
-        const jogo = jogos.find(j => j.id === jogoId);
-        if (jogo) {
-          const vencedor = a > b ? jogo.participanteA : jogo.participanteB;
-          await propagarVencedor(jogo, vencedor);
-        }
-      }
+      // Placar salvo — vencedor NÃO é propagado até a confirmação manual.
     } catch (err: any) {
       toast({ title: 'Erro ao salvar placar', description: err.message, variant: 'destructive' });
     } finally {
       setSavingScore(null);
+    }
+  };
+
+  // Confirma resultado de uma partida individual e propaga o vencedor para a próxima fase
+  const confirmarPartida = async (jogo: Jogo) => {
+    if (!competitionId || !isUuid(jogo.id)) {
+      toast({ title: 'Salve o evento primeiro', variant: 'destructive' });
+      return;
+    }
+    const r = resultados[jogo.id];
+    if (!r || r.placarA == null || r.placarB == null) {
+      toast({ title: 'Registre o placar antes de finalizar', variant: 'destructive' });
+      return;
+    }
+    if (r.placarA === r.placarB) {
+      toast({ title: 'Empate não define vencedor', description: 'Ajuste o placar para definir o vencedor antes de finalizar.', variant: 'destructive' });
+      return;
+    }
+    if (!confirm(`Confirmar resultado e finalizar a partida ${jogo.participanteA} ${r.placarA} x ${r.placarB} ${jogo.participanteB}? O vencedor avançará no chaveamento.`)) return;
+    try {
+      setSavingScore(jogo.id);
+      await finalizeMatch(jogo.id, true);
+      updateJogo(jogo.id, { finalizada: true });
+      const vencedor = r.placarA > r.placarB ? jogo.participanteA : jogo.participanteB;
+      await propagarVencedor(jogo, vencedor);
+      toast({ title: 'Partida finalizada', description: `${vencedor} avançou.` });
+    } catch (err: any) {
+      toast({ title: 'Erro ao finalizar partida', description: err.message, variant: 'destructive' });
+    } finally {
+      setSavingScore(null);
+    }
+  };
+
+  const reabrirPartida = async (jogo: Jogo) => {
+    if (!confirm('Reabrir a partida? O vencedor permanecerá nas próximas fases até que você ajuste manualmente.')) return;
+    try {
+      await finalizeMatch(jogo.id, false);
+      updateJogo(jogo.id, { finalizada: false });
+      toast({ title: 'Partida reaberta' });
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     }
   };
 
