@@ -23,37 +23,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchRole = async (userId: string) => {
-    const { data } = await supabase
+  const fetchRole = async (userId: string): Promise<AppRole> => {
+    const { data, error } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
       .maybeSingle();
-    setRole((data?.role as AppRole) || 'viewer');
+    if (error) console.warn('[auth] fetchRole error:', error.message);
+    return (data?.role as AppRole) || 'viewer';
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        setTimeout(() => fetchRole(session.user.id), 0);
+    let active = true;
+
+    // 1) Subscribe FIRST — handles SIGNED_IN/SIGNED_OUT after page load
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      if (!active) return;
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+      if (newSession?.user) {
+        // defer to avoid deadlock with the auth callback
+        setTimeout(async () => {
+          const r = await fetchRole(newSession.user.id);
+          if (active) setRole(r);
+        }, 0);
       } else {
         setRole(null);
       }
-      setLoading(false);
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchRole(session.user.id);
+    // 2) THEN check existing session — finishes initial loading only after role resolves
+    (async () => {
+      const { data: { session: existing } } = await supabase.auth.getSession();
+      if (!active) return;
+      setSession(existing);
+      setUser(existing?.user ?? null);
+      if (existing?.user) {
+        const r = await fetchRole(existing.user.id);
+        if (active) setRole(r);
       }
-      setLoading(false);
-    });
+      if (active) setLoading(false);
+    })();
 
-    return () => subscription.unsubscribe();
+    return () => { active = false; subscription.unsubscribe(); };
   }, []);
 
   const signIn = async (email: string, password: string) => {
