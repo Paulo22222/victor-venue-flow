@@ -1,5 +1,4 @@
 import jsPDF from 'jspdf';
-import QRCode from 'qrcode';
 import { imageUrlToDataUrl } from './athletePhoto';
 
 export interface BadgeAthlete {
@@ -21,8 +20,6 @@ export interface BadgeAthlete {
 }
 
 // A4 retrato, 2 colunas x 2 linhas = 4 crachás por página.
-// Página ímpar = FRENTE | Página par = VERSO (mesmo grupo, espelhado horizontalmente
-// para alinhar quando impresso frente/verso pela borda longa).
 const PAGE_W = 210, PAGE_H = 297;
 const CARD_W = 90, CARD_H = 130;
 const COLS = 2, ROWS = 2;
@@ -39,12 +36,6 @@ const FALLBACK_PHOTO =
 async function loadPhoto(url?: string | null): Promise<string> {
   if (!url) return FALLBACK_PHOTO;
   try { return await imageUrlToDataUrl(url); } catch { return FALLBACK_PHOTO; }
-}
-
-async function makeQr(payload: string): Promise<string> {
-  try {
-    return await QRCode.toDataURL(payload, { margin: 0, width: 220, errorCorrectionLevel: 'M' });
-  } catch { return FALLBACK_PHOTO; }
 }
 
 function cardOrigin(posIdx: number, mirror = false) {
@@ -110,7 +101,7 @@ function drawFront(pdf: jsPDF, x: number, y: number, a: BadgeAthlete, photoData:
   pdf.text(`No ${code}`, x + CARD_W / 2, y + CARD_H - 4, { align: 'center' });
 }
 
-function drawBack(pdf: jsPDF, x: number, y: number, a: BadgeAthlete, qrData: string) {
+function drawBack(pdf: jsPDF, x: number, y: number, a: BadgeAthlete) {
   pdf.setDrawColor(...PRIMARY);
   pdf.setLineWidth(0.4);
   pdf.roundedRect(x, y, CARD_W, CARD_H, 3, 3, 'S');
@@ -163,19 +154,9 @@ function drawBack(pdf: jsPDF, x: number, y: number, a: BadgeAthlete, qrData: str
   };
   section('Alergias', a.alergias);
   section('Enfermidades / Condições', a.enfermidades);
-  section('Observações', a.observacoes, 3);
+  section('Observações', a.observacoes, 4);
 
-  // QR Code no rodapé
-  const qrSize = 24;
-  const qx = x + CARD_W - qrSize - 4;
-  const qy = y + CARD_H - qrSize - 8;
-  try { pdf.addImage(qrData, 'PNG', qx, qy, qrSize, qrSize); } catch { /* noop */ }
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(6);
-  pdf.setTextColor(120);
-  pdf.text('Escaneie para validação', qx + qrSize / 2, qy + qrSize + 3, { align: 'center' });
-
-  // Identificação inferior esquerda
+  // Identificação inferior
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(7);
   pdf.setTextColor(...PRIMARY);
@@ -191,9 +172,6 @@ function drawBack(pdf: jsPDF, x: number, y: number, a: BadgeAthlete, qrData: str
 export async function generateBadgesPDF(athletes: BadgeAthlete[], filename = 'crachas.pdf') {
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
   const photos = await Promise.all(athletes.map(a => loadPhoto(a.foto_url)));
-  const qrs = await Promise.all(athletes.map(a => makeQr(JSON.stringify({
-    id: a.id, nome: a.nome, evento: a.eventName, modalidade: a.modalidade,
-  }))));
 
   const perPage = COLS * ROWS;
   const totalGroups = Math.ceil(athletes.length / perPage);
@@ -213,7 +191,7 @@ export async function generateBadgesPDF(athletes: BadgeAthlete[], filename = 'cr
       const idx = g * perPage + i;
       if (idx >= athletes.length) break;
       const { x, y } = cardOrigin(i, true);
-      drawBack(pdf, x, y, athletes[idx], qrs[idx]);
+      drawBack(pdf, x, y, athletes[idx]);
     }
   }
 
