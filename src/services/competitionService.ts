@@ -251,6 +251,7 @@ export async function loadCompetition(id: string): Promise<CompetitionState> {
     esporte: m.esporte || undefined,
     finalizada: (m as any).finalizada ?? false,
     manual: (m as any).manual ?? false,
+    detalhesPlacar: (m as any).detalhes_placar ?? null,
   } as any));
 
   const resultados: Record<string, { placarA: number; placarB: number }> = {};
