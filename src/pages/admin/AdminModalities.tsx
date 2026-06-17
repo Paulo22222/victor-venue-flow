@@ -160,8 +160,9 @@ const AdminModalities = () => {
                   {items.map(m => (
                     <tr key={m.id} className="border-t">
                       <td className="p-3 font-medium">{m.nome}<div className="text-xs text-muted-foreground">{m.descricao}</div></td>
+                      <td className="p-3"><Badge variant="outline" className="capitalize text-xs">{m.tipo_participacao === 'individual' ? 'Individual' : 'Coletiva'}</Badge></td>
+                      <td className="p-3 text-xs">{REGRAS.find(r => r.v === m.regra_pontuacao)?.label || m.regra_pontuacao}</td>
                       <td className="p-3">{m.unidade}</td>
-                      <td className="p-3 text-xs">{m.max_atletas ?? '-'} / {m.max_equipes ?? '-'}</td>
                       <td className="p-3"><Badge variant={m.ativo ? 'default' : 'secondary'} className="cursor-pointer" onClick={() => toggle(m)}>{m.ativo ? 'Ativo' : 'Inativo'}</Badge></td>
                       <td className="p-3 text-right">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(m)}><Pencil className="w-3.5 h-3.5" /></Button>
