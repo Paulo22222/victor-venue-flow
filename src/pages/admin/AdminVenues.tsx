@@ -14,6 +14,7 @@ import { Plus, Trash2, Pencil, Loader2, MapPin } from 'lucide-react';
 interface Venue {
   id: string; nome: string; endereco: string | null; capacidade: number | null;
   disponivel: boolean; modalidade_id: string | null; modalidade_nome: string | null; observacoes: string | null;
+  eventsCount?: number;
 }
 interface Modality { id: string; nome: string; }
 
@@ -29,11 +30,15 @@ const AdminVenues = () => {
 
   const fetch = async () => {
     setLoading(true);
-    const [v, m] = await Promise.all([
+    const [v, m, c] = await Promise.all([
       supabase.from('venues').select('*').order('nome'),
       supabase.from('sport_modalities').select('id, nome').eq('ativo', true).order('nome'),
+      supabase.from('competitions').select('venue_id').not('venue_id', 'is', null),
     ]);
-    setItems((v.data ?? []) as Venue[]);
+    const counts: Record<string, number> = {};
+    (c.data ?? []).forEach((row: any) => { if (row.venue_id) counts[row.venue_id] = (counts[row.venue_id] || 0) + 1; });
+    const venuesWithCount = ((v.data ?? []) as any[]).map(x => ({ ...x, eventsCount: counts[x.id] || 0 }));
+    setItems(venuesWithCount as any);
     setMods((m.data ?? []) as Modality[]);
     setLoading(false);
   };
