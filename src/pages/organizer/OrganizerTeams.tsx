@@ -286,6 +286,9 @@ const OrganizerTeams = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title="Editar equipe" onClick={(e) => { e.stopPropagation(); openEditTeam(t); }}>
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleDeleteTeam(t.id); }}>
                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
                       </Button>
@@ -320,6 +323,9 @@ const OrganizerTeams = () => {
                       <div className="font-medium truncate text-sm">{m.nome}</div>
                       <div className="text-xs text-muted-foreground truncate">{m.rg ? `RG ${m.rg}` : ''} {m.curso && `· ${m.curso}`} {m.campus && `· ${m.campus}`}</div>
                     </div>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" title="Editar" onClick={() => openEditMember(m)}>
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteMember(m.id)}>
                       <Trash2 className="w-3.5 h-3.5 text-destructive" />
                     </Button>
@@ -334,7 +340,7 @@ const OrganizerTeams = () => {
       {/* Dialog de novo atleta — completo */}
       <Dialog open={memberDialog} onOpenChange={setMemberDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Adicionar atleta</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingMemberId ? 'Editar atleta' : 'Adicionar atleta'}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="flex items-start gap-4">
               <div className="shrink-0">
