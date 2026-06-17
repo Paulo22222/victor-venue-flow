@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ChevronLeft, Save, CheckCircle2, FileText, Trophy, Loader2, Minus, Plus, Radio, Flag, CalendarClock, MapPin, Lock, History, PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import { generateCompetitionPDF } from '@/utils/pdfGenerator';
-import { getSportRule, pontosRanking } from '@/utils/sportRules';
+import { getSportRule, aplicarPartida, linhaVazia, type SportRule, type RankingRow } from '@/utils/sportRules';
 import { updateMatchScore, updateMatchSchedule, finalizeMatch, createManualMatch, updateMatchParticipants, deleteMatch, getMatchHistory, MatchHistoryRow } from '@/services/competitionService';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -63,7 +63,7 @@ const Stage6Summary = () => {
     }
   };
 
-  const liveUpdate = async (jogoId: string, a: number, b: number) => {
+  const liveUpdate = async (jogoId: string, a: number, b: number, detalhes?: { sets?: number[][] } | null) => {
     if (!competitionId || !isUuid(jogoId)) {
       toast({ title: 'Salve o evento primeiro', description: 'As alterações no placar só podem ser feitas após clicar em "Salvar evento".', variant: 'destructive' });
       return;
@@ -74,10 +74,10 @@ const Stage6Summary = () => {
       return;
     }
     updateResultado(jogoId, a, b);
+    if (detalhes !== undefined) updateJogo(jogoId, { detalhesPlacar: detalhes } as any);
     try {
       setSavingScore(jogoId);
-      await updateMatchScore(jogoId, a, b);
-      // Placar salvo — vencedor NÃO é propagado até a confirmação manual.
+      await updateMatchScore(jogoId, a, b, detalhes);
     } catch (err: any) {
       toast({ title: 'Erro ao salvar placar', description: err.message, variant: 'destructive' });
     } finally {
@@ -133,37 +133,38 @@ const Stage6Summary = () => {
     return (eq?.genero as string) || 'misto';
   };
 
-  const rankingPorModEGenero = (mod: string, genero: string) => {
+  const rankingPorModEGenero = (mod: string, genero: string): RankingRow[] => {
     const regra = getSportRule(mod);
-    const tabela: Record<string, { p: number; v: number; e: number; d: number; sg: number }> = {};
-    const eqs = competidores.equipes.filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase() && (e.genero || 'misto') === genero);
-    eqs.forEach(e => { tabela[e.nome] = { p: 0, v: 0, e: 0, d: 0, sg: 0 }; });
+    const rows: Record<string, RankingRow> = {};
+    if (regra.tipo === 'individual') {
+      competidores.atletas
+        .filter(a => (a.modalidade || '').toUpperCase() === mod.toUpperCase() && (a.genero || 'misto') === genero)
+        .forEach(a => { rows[a.nome] = linhaVazia(a.nome); });
+    } else {
+      competidores.equipes
+        .filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase() && (e.genero || 'misto') === genero)
+        .forEach(e => { rows[e.nome] = linhaVazia(e.nome); });
+    }
     jogosPorMod(mod).forEach(j => {
-      // Classificação só conta partidas oficialmente finalizadas pelo administrador
       if (!j.finalizada) return;
       const r = resultados[j.id];
       if (!r) return;
-      // Ignorar placeholders (Vencedor(...)) — só equipes reais entram
       if (isPending(j.participanteA) || isPending(j.participanteB)) return;
-      // Considerar apenas jogos onde ambas equipes pertencem ao gênero
-      if (!tabela[j.participanteA] || !tabela[j.participanteB]) return;
-      const { a, b } = pontosRanking(r.placarA, r.placarB, regra);
-      tabela[j.participanteA].p += a;
-      tabela[j.participanteB].p += b;
-      tabela[j.participanteA].sg += (r.placarA - r.placarB);
-      tabela[j.participanteB].sg += (r.placarB - r.placarA);
-      if (r.placarA > r.placarB) { tabela[j.participanteA].v++; tabela[j.participanteB].d++; }
-      else if (r.placarB > r.placarA) { tabela[j.participanteB].v++; tabela[j.participanteA].d++; }
-      else { tabela[j.participanteA].e++; tabela[j.participanteB].e++; }
+      if (!rows[j.participanteA] || !rows[j.participanteB]) return;
+      const detalhes = (j as any).detalhesPlacar as { sets?: number[][] } | null | undefined;
+      aplicarPartida(rows[j.participanteA], regra, r.placarA, r.placarB, true, detalhes);
+      aplicarPartida(rows[j.participanteB], regra, r.placarA, r.placarB, false, detalhes);
     });
-    return Object.entries(tabela).sort((a, b) => b[1].p - a[1].p || b[1].sg - a[1].sg);
+    return Object.values(rows).sort((a, b) => b.P - a.P || b.SG - a.SG || (b.SetsV - b.SetsP) - (a.SetsV - a.SetsP));
   };
 
   const generosNaMod = (mod: string): string[] => {
     const set = new Set<string>();
-    competidores.equipes
-      .filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase())
-      .forEach(e => set.add(e.genero || 'misto'));
+    const regra = getSportRule(mod);
+    const list = regra.tipo === 'individual'
+      ? competidores.atletas.filter(a => (a.modalidade || '').toUpperCase() === mod.toUpperCase())
+      : competidores.equipes.filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase());
+    list.forEach((x: any) => set.add(x.genero || 'misto'));
     return Array.from(set);
   };
 
@@ -328,8 +329,10 @@ const Stage6Summary = () => {
       setB(ctx?.jogo?.participanteB ?? '');
     }, [ctx?.jogo?.id, ctx?.mod]);
     if (!ctx) return null;
+    const regraMod = getSportRule(ctx.mod);
     const equipesMod = competidores.equipes.filter(e => (e.modalidade || '').toUpperCase() === ctx.mod.toUpperCase());
-    const opcoes = equipesMod.map(e => e.nome);
+    const atletasMod = competidores.atletas.filter(a => (a.modalidade || '').toUpperCase() === ctx.mod.toUpperCase());
+    const opcoes = regraMod.tipo === 'individual' ? atletasMod.map(a => a.nome) : equipesMod.map(e => e.nome);
     const handleSave = async () => {
       if (!competitionId) return toast({ title: 'Salve o evento primeiro', variant: 'destructive' });
       if (!a || !b || a === b) return toast({ title: 'Selecione duas equipes diferentes', variant: 'destructive' });
@@ -535,27 +538,24 @@ const Stage6Summary = () => {
                         <table className="w-full text-sm">
                           <thead className="bg-muted">
                             <tr>
-                              <th className="p-2 text-left">Posição</th>
+                              <th className="p-2 text-left">Pos</th>
                               <th className="p-2 text-left">Equipe</th>
-                              <th className="p-2 text-center">P</th>
-                              <th className="p-2 text-center">V</th>
-                              <th className="p-2 text-center">E</th>
-                              <th className="p-2 text-center">D</th>
-                              <th className="p-2 text-center">SG</th>
+                              {regra.colunas.map(c => (
+                                <th key={c.key} className="p-2 text-center">{c.label}</th>
+                              ))}
                             </tr>
                           </thead>
                           <tbody>
                             {ranking.length === 0 ? (
-                              <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">Sem placares lançados.</td></tr>
-                            ) : ranking.map(([nome, s], i) => (
-                              <tr key={nome} className={`border-t ${i < 3 ? 'font-semibold' : ''}`}>
-                                <td className="p-2">{i + 1}º LUGAR</td>
-                                <td className="p-2">{nome}</td>
-                                <td className="p-2 text-center font-bold text-primary">{s.p}</td>
-                                <td className="p-2 text-center">{s.v}</td>
-                                <td className="p-2 text-center">{s.e}</td>
-                                <td className="p-2 text-center">{s.d}</td>
-                                <td className="p-2 text-center">{s.sg > 0 ? `+${s.sg}` : s.sg}</td>
+                              <tr><td colSpan={2 + regra.colunas.length} className="p-4 text-center text-muted-foreground">Sem placares lançados.</td></tr>
+                            ) : ranking.map((row, i) => (
+                              <tr key={row.participante} className={`border-t ${i < 3 ? 'font-semibold' : ''}`}>
+                                <td className="p-2">{i + 1}º</td>
+                                <td className="p-2">{row.participante}</td>
+                                {regra.colunas.map(c => {
+                                  const v = (row as any)[c.key] ?? 0;
+                                  return <td key={c.key} className={`p-2 text-center ${c.key === 'P' ? 'font-bold text-primary' : ''}`}>{c.format ? c.format(v) : v}</td>;
+                                })}
                               </tr>
                             ))}
                           </tbody>
@@ -674,29 +674,49 @@ const Stage6Summary = () => {
                                         )}
                                       </div>
                                     </div>
-                                    <ScoreRow
-                                      name={displayName(j.participanteA)}
-                                      value={cur.placarA}
-                                      winner={winA}
-                                      loading={savingScore === j.id}
-                                      onChange={(v) => liveUpdate(j.id, v, cur.placarB)}
-                                      rule={regra}
-                                      disabled={state.finalizado || aguardando || finalizada}
-                                    />
-                                    <div className="flex items-center gap-2">
-                                      <div className="flex-1 border-t border-dashed" />
-                                      <span className="text-[10px] font-bold text-muted-foreground tracking-widest">VS</span>
-                                      <div className="flex-1 border-t border-dashed" />
-                                    </div>
-                                    <ScoreRow
-                                      name={displayName(j.participanteB)}
-                                      value={cur.placarB}
-                                      winner={winB}
-                                      loading={savingScore === j.id}
-                                      onChange={(v) => liveUpdate(j.id, cur.placarA, v)}
-                                      rule={regra}
-                                      disabled={state.finalizado || aguardando || finalizada}
-                                    />
+                                    {(regra.inputTipo === 'sets' || regra.inputTipo === 'games') ? (
+                                      <SetsScoreInput
+                                        nameA={displayName(j.participanteA)}
+                                        nameB={displayName(j.participanteB)}
+                                        sets={(j as any).detalhesPlacar?.sets ?? []}
+                                        winA={winA}
+                                        winB={winB}
+                                        unit={regra.inputTipo === 'sets' ? 'set' : 'game'}
+                                        disabled={state.finalizado || aguardando || finalizada}
+                                        loading={savingScore === j.id}
+                                        onChange={(sets) => {
+                                          const a = sets.filter(s => s[0] > s[1]).length;
+                                          const b = sets.filter(s => s[1] > s[0]).length;
+                                          liveUpdate(j.id, a, b, { sets });
+                                        }}
+                                      />
+                                    ) : (
+                                      <>
+                                        <ScoreRow
+                                          name={displayName(j.participanteA)}
+                                          value={cur.placarA}
+                                          winner={winA}
+                                          loading={savingScore === j.id}
+                                          onChange={(v) => liveUpdate(j.id, v, cur.placarB)}
+                                          rule={regra}
+                                          disabled={state.finalizado || aguardando || finalizada}
+                                        />
+                                        <div className="flex items-center gap-2">
+                                          <div className="flex-1 border-t border-dashed" />
+                                          <span className="text-[10px] font-bold text-muted-foreground tracking-widest">VS</span>
+                                          <div className="flex-1 border-t border-dashed" />
+                                        </div>
+                                        <ScoreRow
+                                          name={displayName(j.participanteB)}
+                                          value={cur.placarB}
+                                          winner={winB}
+                                          loading={savingScore === j.id}
+                                          onChange={(v) => liveUpdate(j.id, cur.placarA, v)}
+                                          rule={regra}
+                                          disabled={state.finalizado || aguardando || finalizada}
+                                        />
+                                      </>
+                                    )}
                                     {podeFinalizar && (
                                       <Button
                                         size="sm"
@@ -786,5 +806,69 @@ const ScoreRow = ({
     </div>
   </div>
 );
+
+const SetsScoreInput = ({
+  nameA, nameB, sets, onChange, disabled, loading, unit, winA, winB,
+}: {
+  nameA: string; nameB: string;
+  sets: number[][];
+  onChange: (sets: number[][]) => void;
+  disabled: boolean; loading: boolean;
+  unit: 'set' | 'game';
+  winA: boolean; winB: boolean;
+}) => {
+  const safe = Array.isArray(sets) ? sets : [];
+  const addSet = () => onChange([...safe, [0, 0]]);
+  const removeSet = (i: number) => onChange(safe.filter((_, idx) => idx !== i));
+  const updateSet = (i: number, side: 0 | 1, val: number) => {
+    const next = safe.map((s, idx) => idx === i ? (side === 0 ? [val, s[1]] : [s[0], val]) : s);
+    onChange(next);
+  };
+  const setsA = safe.filter(s => s[0] > s[1]).length;
+  const setsB = safe.filter(s => s[1] > s[0]).length;
+  const label = unit === 'set' ? 'Set' : 'Game';
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-sm font-semibold">
+        <span className={`truncate flex-1 ${winA ? 'text-primary' : ''}`}>{nameA}</span>
+        <span className="tabular-nums text-xl px-3">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin inline" /> : `${setsA} × ${setsB}`}
+        </span>
+        <span className={`truncate flex-1 text-right ${winB ? 'text-primary' : ''}`}>{nameB}</span>
+      </div>
+      <div className="space-y-1">
+        {safe.length === 0 && (
+          <div className="text-[11px] text-muted-foreground text-center py-1">Nenhum {label.toLowerCase()} registrado.</div>
+        )}
+        {safe.map((s, i) => (
+          <div key={i} className="flex items-center gap-2 text-xs">
+            <span className="w-12 text-muted-foreground">{label} {i + 1}</span>
+            <Input
+              type="number" min={0} value={s[0]} disabled={disabled}
+              onChange={(e) => updateSet(i, 0, Math.max(0, Number(e.target.value) || 0))}
+              className="h-7 w-16 text-center"
+            />
+            <span className="text-muted-foreground">x</span>
+            <Input
+              type="number" min={0} value={s[1]} disabled={disabled}
+              onChange={(e) => updateSet(i, 1, Math.max(0, Number(e.target.value) || 0))}
+              className="h-7 w-16 text-center"
+            />
+            {!disabled && (
+              <Button size="icon" variant="ghost" className="h-6 w-6 ml-auto" onClick={() => removeSet(i)}>
+                <Trash2 className="w-3 h-3 text-destructive" />
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+      {!disabled && (
+        <Button size="sm" variant="outline" className="w-full h-7 gap-1 text-xs" onClick={addSet}>
+          <PlusCircle className="w-3 h-3" /> Adicionar {label.toLowerCase()}
+        </Button>
+      )}
+    </div>
+  );
+};
 
 export default Stage6Summary;

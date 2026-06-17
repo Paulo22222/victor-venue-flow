@@ -80,6 +80,8 @@ export interface Jogo {
   esporte?: string;
   finalizada?: boolean;
   manual?: boolean;
+  /** Detalhes do placar para esportes como vôlei/tênis de mesa: { sets: [[a,b],...] } */
+  detalhesPlacar?: { sets?: number[][] } | null;
 }
 
 export interface CompetitionState {

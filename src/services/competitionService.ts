@@ -111,6 +111,7 @@ export async function saveCompetition(state: CompetitionState, existingId?: stri
         genero: a.genero,
         codigo: a.codigo || null,
         modalidade: a.modalidade || null,
+        inscricao_individual: (a as any).inscricaoIndividual ?? false,
       }))
     );
   }
@@ -175,6 +176,7 @@ export async function saveCompetition(state: CompetitionState, existingId?: stri
       local: j.local || null,
       modalidade: j.modalidade || null,
       esporte: j.esporte || j.modalidade || null,
+      detalhes_placar: (j as any).detalhesPlacar ?? null,
     }));
     const { data: inserted, error: matchErr } = await supabase
       .from('competition_matches')
@@ -249,6 +251,7 @@ export async function loadCompetition(id: string): Promise<CompetitionState> {
     esporte: m.esporte || undefined,
     finalizada: (m as any).finalizada ?? false,
     manual: (m as any).manual ?? false,
+    detalhesPlacar: (m as any).detalhes_placar ?? null,
   } as any));
 
   const resultados: Record<string, { placarA: number; placarB: number }> = {};
@@ -312,7 +315,12 @@ export async function finalizeCompetition(id: string): Promise<void> {
 }
 
 // Atualiza placar em tempo real e grava histórico (auditoria)
-export async function updateMatchScore(matchId: string, placarA: number | null, placarB: number | null): Promise<void> {
+export async function updateMatchScore(
+  matchId: string,
+  placarA: number | null,
+  placarB: number | null,
+  detalhes?: { sets?: number[][] } | null,
+): Promise<void> {
   // Captura valores antigos para histórico
   const { data: before } = await supabase
     .from('competition_matches')
@@ -320,9 +328,11 @@ export async function updateMatchScore(matchId: string, placarA: number | null, 
     .eq('id', matchId)
     .maybeSingle();
 
+  const payload: any = { placar_a: placarA, placar_b: placarB };
+  if (detalhes !== undefined) payload.detalhes_placar = detalhes;
   const { error } = await supabase
     .from('competition_matches')
-    .update({ placar_a: placarA, placar_b: placarB })
+    .update(payload)
     .eq('id', matchId);
   if (error) throw error;
 
