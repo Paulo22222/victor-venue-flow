@@ -170,11 +170,16 @@ const AdminUsers = () => {
                         )}
                       </td>
                       <td className="p-3 text-center">
-                        {u.id !== me?.id && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteUser(u.id)}>
-                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        <div className="flex items-center justify-center gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Alterar senha" onClick={() => setPwdDialog({ id: u.id, name: u.display_name })}>
+                            <KeyRound className="w-3.5 h-3.5" />
                           </Button>
-                        )}
+                          {u.id !== me?.id && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Excluir" onClick={() => deleteUser(u.id)}>
+                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
