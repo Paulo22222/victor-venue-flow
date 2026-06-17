@@ -136,8 +136,15 @@ const Stage6Summary = () => {
   const rankingPorModEGenero = (mod: string, genero: string): RankingRow[] => {
     const regra = getSportRule(mod);
     const rows: Record<string, RankingRow> = {};
-    const eqs = competidores.equipes.filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase() && (e.genero || 'misto') === genero);
-    eqs.forEach(e => { rows[e.nome] = linhaVazia(e.nome); });
+    if (regra.tipo === 'individual') {
+      competidores.atletas
+        .filter(a => (a.modalidade || '').toUpperCase() === mod.toUpperCase() && (a.genero || 'misto') === genero)
+        .forEach(a => { rows[a.nome] = linhaVazia(a.nome); });
+    } else {
+      competidores.equipes
+        .filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase() && (e.genero || 'misto') === genero)
+        .forEach(e => { rows[e.nome] = linhaVazia(e.nome); });
+    }
     jogosPorMod(mod).forEach(j => {
       if (!j.finalizada) return;
       const r = resultados[j.id];
@@ -153,9 +160,11 @@ const Stage6Summary = () => {
 
   const generosNaMod = (mod: string): string[] => {
     const set = new Set<string>();
-    competidores.equipes
-      .filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase())
-      .forEach(e => set.add(e.genero || 'misto'));
+    const regra = getSportRule(mod);
+    const list = regra.tipo === 'individual'
+      ? competidores.atletas.filter(a => (a.modalidade || '').toUpperCase() === mod.toUpperCase())
+      : competidores.equipes.filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase());
+    list.forEach((x: any) => set.add(x.genero || 'misto'));
     return Array.from(set);
   };
 
