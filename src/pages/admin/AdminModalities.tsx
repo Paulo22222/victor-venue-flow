@@ -7,15 +7,28 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { Plus, Trash2, Pencil, Loader2, ListChecks } from 'lucide-react';
 
 interface Modality {
   id: string; nome: string; descricao: string | null; unidade: string | null;
   max_atletas: number | null; max_equipes: number | null; ativo: boolean; regras: string | null;
+  tipo_participacao: 'coletiva' | 'individual'; regra_pontuacao: string;
 }
 
-const blank = { nome: '', descricao: '', unidade: 'pontos', max_atletas: '', max_equipes: '', regras: '', ativo: true };
+const REGRAS = [
+  { v: 'padrao', label: 'Padrão (V/E/D · 3-1-0)' },
+  { v: 'futsal', label: 'Futsal (gols + saldo)' },
+  { v: 'handebol', label: 'Handebol (gols + saldo)' },
+  { v: 'volei', label: 'Vôlei (por sets)' },
+  { v: 'tenis_mesa', label: 'Tênis de Mesa (por games)' },
+  { v: 'xadrez', label: 'Xadrez (1/½/0)' },
+  { v: 'atletismo', label: 'Atletismo (maior marca)' },
+  { v: 'corrida', label: 'Corrida (menor tempo)' },
+];
+
+const blank = { nome: '', descricao: '', unidade: 'pontos', max_atletas: '', max_equipes: '', regras: '', ativo: true, tipo_participacao: 'coletiva', regra_pontuacao: 'padrao' };
 
 const AdminModalities = () => {
   const [items, setItems] = useState<Modality[]>([]);
