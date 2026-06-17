@@ -50,6 +50,7 @@ export type Database = {
           documento: string | null
           genero: string | null
           id: string
+          inscricao_individual: boolean
           modalidade: string | null
           nome: string
         }
@@ -61,6 +62,7 @@ export type Database = {
           documento?: string | null
           genero?: string | null
           id?: string
+          inscricao_individual?: boolean
           modalidade?: string | null
           nome: string
         }
@@ -72,6 +74,7 @@ export type Database = {
           documento?: string | null
           genero?: string | null
           id?: string
+          inscricao_individual?: boolean
           modalidade?: string | null
           nome?: string
         }
@@ -174,6 +177,7 @@ export type Database = {
           competition_id: string
           created_at: string
           data: string | null
+          detalhes_placar: Json | null
           esporte: string | null
           finalizada: boolean
           horario: string | null
@@ -191,6 +195,7 @@ export type Database = {
           competition_id: string
           created_at?: string
           data?: string | null
+          detalhes_placar?: Json | null
           esporte?: string | null
           finalizada?: boolean
           horario?: string | null
@@ -208,6 +213,7 @@ export type Database = {
           competition_id?: string
           created_at?: string
           data?: string | null
+          detalhes_placar?: Json | null
           esporte?: string | null
           finalizada?: boolean
           horario?: string | null
@@ -581,37 +587,46 @@ export type Database = {
       sport_modalities: {
         Row: {
           ativo: boolean
+          colunas_classificacao: Json | null
           created_at: string
           descricao: string | null
           id: string
           max_atletas: number | null
           max_equipes: number | null
           nome: string
+          regra_pontuacao: string
           regras: string | null
+          tipo_participacao: string
           unidade: string | null
           updated_at: string
         }
         Insert: {
           ativo?: boolean
+          colunas_classificacao?: Json | null
           created_at?: string
           descricao?: string | null
           id?: string
           max_atletas?: number | null
           max_equipes?: number | null
           nome: string
+          regra_pontuacao?: string
           regras?: string | null
+          tipo_participacao?: string
           unidade?: string | null
           updated_at?: string
         }
         Update: {
           ativo?: boolean
+          colunas_classificacao?: Json | null
           created_at?: string
           descricao?: string | null
           id?: string
           max_atletas?: number | null
           max_equipes?: number | null
           nome?: string
+          regra_pontuacao?: string
           regras?: string | null
+          tipo_participacao?: string
           unidade?: string | null
           updated_at?: string
         }
