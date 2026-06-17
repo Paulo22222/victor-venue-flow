@@ -29,6 +29,8 @@ const Stage6Summary = () => {
   const [finalizeRound, setFinalizeRound] = useState<{ mod: string; rodada: number } | null>(null);
   const [rescheduleJogo, setRescheduleJogo] = useState<Jogo | null>(null);
   const [venues, setVenues] = useState<{ id: string; nome: string; modalidade_nome: string | null }[]>([]);
+  const [manualDialog, setManualDialog] = useState<{ mod: string; jogo?: Jogo } | null>(null);
+  const [historyDialog, setHistoryDialog] = useState<Jogo | null>(null);
 
   useEffect(() => {
     supabase.from('venues').select('id, nome, modalidade_nome').eq('disponivel', true).order('nome')
