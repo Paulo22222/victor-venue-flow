@@ -22,6 +22,9 @@ const AdminUsers = () => {
   const [updating, setUpdating] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [pwdDialog, setPwdDialog] = useState<{ id: string; name: string } | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [savingPwd, setSavingPwd] = useState(false);
   const [newUser, setNewUser] = useState({ username: '', password: '', display_name: '', role: 'organizer', telefone: '', instituicao: '', campus: '' });
 
   const fetchUsers = async () => {
