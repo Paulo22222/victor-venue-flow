@@ -32,10 +32,12 @@ const AuthPage = () => {
     if (!u) return toast({ title: 'Informe o usuário', variant: 'destructive' });
     setLoading(true);
     try {
-      // Username is converted to internal email for Supabase Auth
       const email = u.includes('@') ? u : `${u}@${INTERNAL_DOMAIN}`;
-      await signIn(email, password);
+      const r = await signIn(email, password);
       toast({ title: 'Login realizado!' });
+      if (r === 'admin') navigate('/admin/dashboard', { replace: true });
+      else if (r === 'organizer') navigate('/organizer/dashboard', { replace: true });
+      else toast({ title: 'Sem permissão', description: 'Sua conta não possui acesso administrativo.', variant: 'destructive' });
     } catch (err: any) {
       toast({ title: 'Erro ao entrar', description: err.message === 'Invalid login credentials' ? 'Usuário ou senha incorretos' : err.message, variant: 'destructive' });
     } finally {
