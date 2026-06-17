@@ -663,29 +663,49 @@ const Stage6Summary = () => {
                                         )}
                                       </div>
                                     </div>
-                                    <ScoreRow
-                                      name={displayName(j.participanteA)}
-                                      value={cur.placarA}
-                                      winner={winA}
-                                      loading={savingScore === j.id}
-                                      onChange={(v) => liveUpdate(j.id, v, cur.placarB)}
-                                      rule={regra}
-                                      disabled={state.finalizado || aguardando || finalizada}
-                                    />
-                                    <div className="flex items-center gap-2">
-                                      <div className="flex-1 border-t border-dashed" />
-                                      <span className="text-[10px] font-bold text-muted-foreground tracking-widest">VS</span>
-                                      <div className="flex-1 border-t border-dashed" />
-                                    </div>
-                                    <ScoreRow
-                                      name={displayName(j.participanteB)}
-                                      value={cur.placarB}
-                                      winner={winB}
-                                      loading={savingScore === j.id}
-                                      onChange={(v) => liveUpdate(j.id, cur.placarA, v)}
-                                      rule={regra}
-                                      disabled={state.finalizado || aguardando || finalizada}
-                                    />
+                                    {(regra.inputTipo === 'sets' || regra.inputTipo === 'games') ? (
+                                      <SetsScoreInput
+                                        nameA={displayName(j.participanteA)}
+                                        nameB={displayName(j.participanteB)}
+                                        sets={(j as any).detalhesPlacar?.sets ?? []}
+                                        winA={winA}
+                                        winB={winB}
+                                        unit={regra.inputTipo === 'sets' ? 'set' : 'game'}
+                                        disabled={state.finalizado || aguardando || finalizada}
+                                        loading={savingScore === j.id}
+                                        onChange={(sets) => {
+                                          const a = sets.filter(s => s[0] > s[1]).length;
+                                          const b = sets.filter(s => s[1] > s[0]).length;
+                                          liveUpdate(j.id, a, b, { sets });
+                                        }}
+                                      />
+                                    ) : (
+                                      <>
+                                        <ScoreRow
+                                          name={displayName(j.participanteA)}
+                                          value={cur.placarA}
+                                          winner={winA}
+                                          loading={savingScore === j.id}
+                                          onChange={(v) => liveUpdate(j.id, v, cur.placarB)}
+                                          rule={regra}
+                                          disabled={state.finalizado || aguardando || finalizada}
+                                        />
+                                        <div className="flex items-center gap-2">
+                                          <div className="flex-1 border-t border-dashed" />
+                                          <span className="text-[10px] font-bold text-muted-foreground tracking-widest">VS</span>
+                                          <div className="flex-1 border-t border-dashed" />
+                                        </div>
+                                        <ScoreRow
+                                          name={displayName(j.participanteB)}
+                                          value={cur.placarB}
+                                          winner={winB}
+                                          loading={savingScore === j.id}
+                                          onChange={(v) => liveUpdate(j.id, cur.placarA, v)}
+                                          rule={regra}
+                                          disabled={state.finalizado || aguardando || finalizada}
+                                        />
+                                      </>
+                                    )}
                                     {podeFinalizar && (
                                       <Button
                                         size="sm"
