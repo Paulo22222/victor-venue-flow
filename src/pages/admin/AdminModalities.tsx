@@ -62,6 +62,8 @@ const AdminModalities = () => {
       max_equipes: form.max_equipes ? Number(form.max_equipes) : null,
       regras: form.regras || null,
       ativo: !!form.ativo,
+      tipo_participacao: form.tipo_participacao || 'coletiva',
+      regra_pontuacao: form.regra_pontuacao || 'padrao',
     };
     const { error } = editing
       ? await supabase.from('sport_modalities').update(payload).eq('id', editing.id)
