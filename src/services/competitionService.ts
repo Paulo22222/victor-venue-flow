@@ -312,7 +312,12 @@ export async function finalizeCompetition(id: string): Promise<void> {
 }
 
 // Atualiza placar em tempo real e grava histórico (auditoria)
-export async function updateMatchScore(matchId: string, placarA: number | null, placarB: number | null): Promise<void> {
+export async function updateMatchScore(
+  matchId: string,
+  placarA: number | null,
+  placarB: number | null,
+  detalhes?: { sets?: number[][] } | null,
+): Promise<void> {
   // Captura valores antigos para histórico
   const { data: before } = await supabase
     .from('competition_matches')
@@ -320,9 +325,11 @@ export async function updateMatchScore(matchId: string, placarA: number | null, 
     .eq('id', matchId)
     .maybeSingle();
 
+  const payload: any = { placar_a: placarA, placar_b: placarB };
+  if (detalhes !== undefined) payload.detalhes_placar = detalhes;
   const { error } = await supabase
     .from('competition_matches')
-    .update({ placar_a: placarA, placar_b: placarB })
+    .update(payload)
     .eq('id', matchId);
   if (error) throw error;
 
