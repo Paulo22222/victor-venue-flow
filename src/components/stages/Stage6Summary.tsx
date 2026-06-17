@@ -63,7 +63,7 @@ const Stage6Summary = () => {
     }
   };
 
-  const liveUpdate = async (jogoId: string, a: number, b: number) => {
+  const liveUpdate = async (jogoId: string, a: number, b: number, detalhes?: { sets?: number[][] } | null) => {
     if (!competitionId || !isUuid(jogoId)) {
       toast({ title: 'Salve o evento primeiro', description: 'As alterações no placar só podem ser feitas após clicar em "Salvar evento".', variant: 'destructive' });
       return;
@@ -74,10 +74,10 @@ const Stage6Summary = () => {
       return;
     }
     updateResultado(jogoId, a, b);
+    if (detalhes !== undefined) updateJogo(jogoId, { detalhesPlacar: detalhes } as any);
     try {
       setSavingScore(jogoId);
-      await updateMatchScore(jogoId, a, b);
-      // Placar salvo — vencedor NÃO é propagado até a confirmação manual.
+      await updateMatchScore(jogoId, a, b, detalhes);
     } catch (err: any) {
       toast({ title: 'Erro ao salvar placar', description: err.message, variant: 'destructive' });
     } finally {
