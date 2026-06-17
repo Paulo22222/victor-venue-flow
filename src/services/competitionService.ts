@@ -176,6 +176,7 @@ export async function saveCompetition(state: CompetitionState, existingId?: stri
       local: j.local || null,
       modalidade: j.modalidade || null,
       esporte: j.esporte || j.modalidade || null,
+      detalhes_placar: (j as any).detalhesPlacar ?? null,
     }));
     const { data: inserted, error: matchErr } = await supabase
       .from('competition_matches')
