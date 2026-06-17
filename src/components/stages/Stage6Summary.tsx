@@ -573,9 +573,14 @@ const Stage6Summary = () => {
                     <Radio className="w-4 h-4 text-destructive animate-pulse" />
                     Chaveamento ao vivo — {m.nome}
                   </h3>
-                  <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">
-                    {regra.descricaoPontuacao}
-                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">{regra.descricaoPontuacao}</span>
+                    {!state.finalizado && competitionId && (
+                      <Button size="sm" variant="outline" className="gap-1 h-7" onClick={() => setManualDialog({ mod: m.nome })}>
+                        <PlusCircle className="w-3.5 h-3.5" /> Confronto manual
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <CardContent className="p-5">
                   {rkeys.length === 0 ? (
@@ -644,12 +649,30 @@ const Stage6Summary = () => {
                                       <Badge variant="outline" className={`text-[10px] uppercase tracking-wider ${statusColor} border-0`}>
                                         {finalizada && <Lock className="w-3 h-3 mr-1 inline" />}
                                         {statusLabel}
+                                        {(j as any).manual && <span className="ml-1 text-[9px]">· manual</span>}
                                       </Badge>
-                                      {finalizada && !state.finalizado && (
-                                        <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => reabrirPartida(j)}>
-                                          Reabrir
-                                        </Button>
-                                      )}
+                                      <div className="flex items-center gap-1">
+                                        {finalizada && (
+                                          <Button size="icon" variant="ghost" className="h-6 w-6" title="Histórico de placar" onClick={() => setHistoryDialog(j)}>
+                                            <History className="w-3.5 h-3.5" />
+                                          </Button>
+                                        )}
+                                        {!state.finalizado && !finalizada && (
+                                          <Button size="icon" variant="ghost" className="h-6 w-6" title="Editar confronto" onClick={() => setManualDialog({ mod: m.nome, jogo: j })}>
+                                            <Pencil className="w-3.5 h-3.5" />
+                                          </Button>
+                                        )}
+                                        {!state.finalizado && !finalizada && (
+                                          <Button size="icon" variant="ghost" className="h-6 w-6" title="Excluir confronto" onClick={() => handleDeleteMatch(j)}>
+                                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                                          </Button>
+                                        )}
+                                        {finalizada && !state.finalizado && (
+                                          <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => reabrirPartida(j)}>
+                                            Reabrir
+                                          </Button>
+                                        )}
+                                      </div>
                                     </div>
                                     <ScoreRow
                                       name={displayName(j.participanteA)}
