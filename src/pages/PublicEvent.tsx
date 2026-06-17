@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Loader2, Trophy, Radio, Calendar, MapPin } from 'lucide-react';
-import { getSportRule, pontosRanking } from '@/utils/sportRules';
+import { getSportRule, aplicarPartida, linhaVazia, type RankingRow, type SportRule } from '@/utils/sportRules';
 import logo from '@/assets/logo.png';
 
 interface Competition {
