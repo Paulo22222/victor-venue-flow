@@ -8,10 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ChevronLeft, Save, CheckCircle2, FileText, Trophy, Loader2, Minus, Plus, Radio, Flag, CalendarClock, MapPin, Lock } from 'lucide-react';
+import { ChevronLeft, Save, CheckCircle2, FileText, Trophy, Loader2, Minus, Plus, Radio, Flag, CalendarClock, MapPin, Lock, History, PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import { generateCompetitionPDF } from '@/utils/pdfGenerator';
 import { getSportRule, pontosRanking } from '@/utils/sportRules';
-import { updateMatchScore, updateMatchSchedule, finalizeMatch } from '@/services/competitionService';
+import { updateMatchScore, updateMatchSchedule, finalizeMatch, createManualMatch, updateMatchParticipants, deleteMatch, getMatchHistory, MatchHistoryRow } from '@/services/competitionService';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import type { Jogo } from '@/types/competition';
@@ -36,10 +36,12 @@ const Stage6Summary = () => {
   }, []);
 
   // Propaga vencedor para o próximo jogo da chave (substitui "Vencedor(A x B)")
+  // IMPORTANTE: jogos marcados como `manual` NÃO são sobrescritos.
   const propagarVencedor = async (jogoDecidido: Jogo, vencedor: string) => {
     const placeholder = `Vencedor(${jogoDecidido.participanteA} x ${jogoDecidido.participanteB})`;
     const proximos = jogos.filter(
-      j => (j.modalidade || '').toUpperCase() === (jogoDecidido.modalidade || '').toUpperCase() &&
+      j => !(j as any).manual &&
+        (j.modalidade || '').toUpperCase() === (jogoDecidido.modalidade || '').toUpperCase() &&
         j.rodada > jogoDecidido.rodada &&
         (j.participanteA === placeholder || j.participanteB === placeholder)
     );
