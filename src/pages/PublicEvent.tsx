@@ -172,7 +172,7 @@ const PublicEvent = () => {
   );
 };
 
-const RankingTable = ({ titulo, ranking }: { titulo: string; ranking: [string, any][] }) => (
+const RankingTable = ({ titulo, regra, ranking }: { titulo: string; regra: SportRule; ranking: RankingRow[] }) => (
   <Card>
     <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Trophy className="w-5 h-5 text-primary" /> {titulo}</CardTitle></CardHeader>
     <CardContent>
@@ -181,22 +181,22 @@ const RankingTable = ({ titulo, ranking }: { titulo: string; ranking: [string, a
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="p-2 text-left">Posição</th><th className="p-2 text-left">Equipe</th>
-                <th className="p-2 text-center">P</th><th className="p-2 text-center">V</th>
-                <th className="p-2 text-center">E</th><th className="p-2 text-center">D</th>
-                <th className="p-2 text-center">SG</th>
+                <th className="p-2 text-left">Pos</th>
+                <th className="p-2 text-left">Participante</th>
+                {regra.colunas.map(c => (
+                  <th key={c.key} className="p-2 text-center">{c.label}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {ranking.map(([nome, s], i) => (
-                <tr key={nome} className={`border-t ${i < 3 ? 'font-semibold' : ''}`}>
-                  <td className="p-2">{i + 1}º LUGAR</td>
-                  <td className="p-2">{nome}</td>
-                  <td className="p-2 text-center font-bold text-primary">{s.p}</td>
-                  <td className="p-2 text-center">{s.v}</td>
-                  <td className="p-2 text-center">{s.e}</td>
-                  <td className="p-2 text-center">{s.d}</td>
-                  <td className="p-2 text-center">{s.gp - s.gc}</td>
+              {ranking.map((r, i) => (
+                <tr key={r.participante} className={`border-t ${i < 3 ? 'font-semibold' : ''}`}>
+                  <td className="p-2">{i + 1}º</td>
+                  <td className="p-2">{r.participante}</td>
+                  {regra.colunas.map(c => {
+                    const v = (r as any)[c.key] ?? 0;
+                    return <td key={c.key} className={`p-2 text-center ${c.key === 'P' ? 'font-bold text-primary' : ''}`}>{c.format ? c.format(v) : v}</td>;
+                  })}
                 </tr>
               ))}
             </tbody>
