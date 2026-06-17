@@ -388,8 +388,44 @@ const OrganizerTeams = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setMemberDialog(false)}>Cancelar</Button>
             <Button onClick={handleAddMember} disabled={photoUploading} className="gradient-primary text-primary-foreground">
-              {photoUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Adicionar'}
+              {photoUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingMemberId ? 'Salvar' : 'Adicionar')}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Editar equipe */}
+      <Dialog open={!!editTeamDialog} onOpenChange={(o) => !o && setEditTeamDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Editar equipe</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-xs">Nome *</Label><Input value={editTeamForm.nome} onChange={e => setEditTeamForm(s => ({ ...s, nome: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Modalidade</Label>
+                <Select value={editTeamForm.modalidade} onValueChange={v => setEditTeamForm(s => ({ ...s, modalidade: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{modalities.map(m => <SelectItem key={m.id} value={m.nome}>{m.nome}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Gênero</Label>
+                <Select value={editTeamForm.genero} onValueChange={v => setEditTeamForm(s => ({ ...s, genero: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="masculino">Masculino</SelectItem>
+                    <SelectItem value="feminino">Feminino</SelectItem>
+                    <SelectItem value="misto">Misto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div><Label className="text-xs">Responsável</Label><Input value={editTeamForm.responsavel} onChange={e => setEditTeamForm(s => ({ ...s, responsavel: e.target.value }))} placeholder="Nome do responsável" /></div>
+            <div><Label className="text-xs">Contato (telefone/e-mail)</Label><Input value={editTeamForm.contato} onChange={e => setEditTeamForm(s => ({ ...s, contato: e.target.value }))} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTeamDialog(null)}>Cancelar</Button>
+            <Button onClick={saveEditTeam} className="gradient-primary text-primary-foreground">Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
