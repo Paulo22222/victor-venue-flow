@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
-import { Shield, Loader2, Plus, Trash2, User } from 'lucide-react';
+import { Shield, Loader2, Plus, Trash2, User, KeyRound } from 'lucide-react';
 
 interface UserInfo {
   id: string; email: string; username: string | null; display_name: string; role: string; created_at: string;
