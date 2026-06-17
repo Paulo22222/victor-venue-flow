@@ -133,30 +133,22 @@ const Stage6Summary = () => {
     return (eq?.genero as string) || 'misto';
   };
 
-  const rankingPorModEGenero = (mod: string, genero: string) => {
+  const rankingPorModEGenero = (mod: string, genero: string): RankingRow[] => {
     const regra = getSportRule(mod);
-    const tabela: Record<string, { p: number; v: number; e: number; d: number; sg: number }> = {};
+    const rows: Record<string, RankingRow> = {};
     const eqs = competidores.equipes.filter(e => (e.modalidade || '').toUpperCase() === mod.toUpperCase() && (e.genero || 'misto') === genero);
-    eqs.forEach(e => { tabela[e.nome] = { p: 0, v: 0, e: 0, d: 0, sg: 0 }; });
+    eqs.forEach(e => { rows[e.nome] = linhaVazia(e.nome); });
     jogosPorMod(mod).forEach(j => {
-      // Classificação só conta partidas oficialmente finalizadas pelo administrador
       if (!j.finalizada) return;
       const r = resultados[j.id];
       if (!r) return;
-      // Ignorar placeholders (Vencedor(...)) — só equipes reais entram
       if (isPending(j.participanteA) || isPending(j.participanteB)) return;
-      // Considerar apenas jogos onde ambas equipes pertencem ao gênero
-      if (!tabela[j.participanteA] || !tabela[j.participanteB]) return;
-      const { a, b } = pontosRanking(r.placarA, r.placarB, regra);
-      tabela[j.participanteA].p += a;
-      tabela[j.participanteB].p += b;
-      tabela[j.participanteA].sg += (r.placarA - r.placarB);
-      tabela[j.participanteB].sg += (r.placarB - r.placarA);
-      if (r.placarA > r.placarB) { tabela[j.participanteA].v++; tabela[j.participanteB].d++; }
-      else if (r.placarB > r.placarA) { tabela[j.participanteB].v++; tabela[j.participanteA].d++; }
-      else { tabela[j.participanteA].e++; tabela[j.participanteB].e++; }
+      if (!rows[j.participanteA] || !rows[j.participanteB]) return;
+      const detalhes = (j as any).detalhesPlacar as { sets?: number[][] } | null | undefined;
+      aplicarPartida(rows[j.participanteA], regra, r.placarA, r.placarB, true, detalhes);
+      aplicarPartida(rows[j.participanteB], regra, r.placarA, r.placarB, false, detalhes);
     });
-    return Object.entries(tabela).sort((a, b) => b[1].p - a[1].p || b[1].sg - a[1].sg);
+    return Object.values(rows).sort((a, b) => b.P - a.P || b.SG - a.SG || (b.SetsV - b.SetsP) - (a.SetsV - a.SetsP));
   };
 
   const generosNaMod = (mod: string): string[] => {
