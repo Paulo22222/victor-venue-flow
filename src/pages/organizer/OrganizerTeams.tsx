@@ -35,7 +35,8 @@ const emptyMember = {
 };
 
 const OrganizerTeams = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const isAdmin = role === 'admin';
   const [teams, setTeams] = useState<Team[]>([]);
   const [modalities, setModalities] = useState<Modality[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,16 +46,21 @@ const OrganizerTeams = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [memberDialog, setMemberDialog] = useState(false);
   const [newMember, setNewMember] = useState<any>(emptyMember);
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [importing, setImporting] = useState(false);
   const importInput = useRef<HTMLInputElement>(null);
+  const [editTeamDialog, setEditTeamDialog] = useState<Team | null>(null);
+  const [editTeamForm, setEditTeamForm] = useState({ nome: '', genero: 'masculino', modalidade: '', responsavel: '', contato: '' });
 
   const fetchAll = async () => {
     if (!user) return;
     setLoading(true);
+    let q = supabase.from('organizer_teams').select('*').order('created_at', { ascending: false });
+    if (!isAdmin) q = q.eq('owner_id', user.id);
     const [t, m] = await Promise.all([
-      supabase.from('organizer_teams').select('*').eq('owner_id', user.id).order('created_at', { ascending: false }),
+      q,
       supabase.from('sport_modalities').select('id, nome').eq('ativo', true).order('nome'),
     ]);
     setTeams((t.data ?? []) as Team[]);
