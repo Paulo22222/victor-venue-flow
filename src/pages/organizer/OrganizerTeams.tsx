@@ -10,13 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Trash2, Users, Loader2, ChevronRight, UserPlus, Upload, FileSpreadsheet, Download } from 'lucide-react';
+import { Plus, Trash2, Users, Loader2, ChevronRight, UserPlus, Upload, FileSpreadsheet, Download, Pencil } from 'lucide-react';
 import { uploadAthletePhoto } from '@/utils/athletePhoto';
 import { parseAthletesFile, downloadTemplate } from '@/utils/athleteImport';
 
 interface Modality { id: string; nome: string; }
 interface Team {
   id: string; nome: string; genero: string | null; modalidade: string; created_at: string;
+  responsavel?: string | null; contato?: string | null; owner_id?: string;
 }
 interface Member {
   id: string; team_id: string | null; nome: string; data_nascimento: string | null;
