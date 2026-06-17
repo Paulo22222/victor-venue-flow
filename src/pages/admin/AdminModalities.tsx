@@ -106,6 +106,27 @@ const AdminModalities = () => {
                 <div className="flex items-end gap-2"><Switch checked={form.ativo} onCheckedChange={v => setForm({ ...form, ativo: v })} /><Label>Ativo</Label></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Tipo de participação</Label>
+                  <Select value={form.tipo_participacao} onValueChange={(v) => setForm({ ...form, tipo_participacao: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="coletiva">Coletiva (equipes)</SelectItem>
+                      <SelectItem value="individual">Individual (atletas)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Regra de pontuação</Label>
+                  <Select value={form.regra_pontuacao} onValueChange={(v) => setForm({ ...form, regra_pontuacao: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {REGRAS.map(r => <SelectItem key={r.v} value={r.v}>{r.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div><Label className="text-xs">Máx atletas</Label><Input type="number" value={form.max_atletas} onChange={e => setForm({ ...form, max_atletas: e.target.value })} /></div>
                 <div><Label className="text-xs">Máx equipes</Label><Input type="number" value={form.max_equipes} onChange={e => setForm({ ...form, max_equipes: e.target.value })} /></div>
               </div>
