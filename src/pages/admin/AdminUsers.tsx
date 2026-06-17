@@ -70,6 +70,18 @@ const AdminUsers = () => {
     finally { setCreating(false); }
   };
 
+  const changePassword = async () => {
+    if (!pwdDialog || newPassword.length < 6) return toast({ title: 'Senha mínima de 6 caracteres', variant: 'destructive' });
+    setSavingPwd(true);
+    try {
+      const { error } = await supabase.functions.invoke('manage-roles?action=set-password', { body: { user_id: pwdDialog.id, new_password: newPassword } });
+      if (error) throw error;
+      toast({ title: 'Senha alterada!', description: `Nova senha definida para ${pwdDialog.name}` });
+      setPwdDialog(null); setNewPassword('');
+    } catch (err: any) { toast({ title: 'Erro', description: err.message, variant: 'destructive' }); }
+    finally { setSavingPwd(false); }
+  };
+
   const deleteUser = async (userId: string) => {
     if (!confirm('Excluir este usuário permanentemente?')) return;
     try {
@@ -192,6 +204,25 @@ const AdminUsers = () => {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!pwdDialog} onOpenChange={(o) => { if (!o) { setPwdDialog(null); setNewPassword(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><KeyRound className="w-5 h-5" /> Alterar senha</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Usuário: <strong>{pwdDialog?.name}</strong></p>
+            <div>
+              <Label className="text-xs">Nova senha *</Label>
+              <Input type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="mínimo 6 caracteres" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPwdDialog(null); setNewPassword(''); }}>Cancelar</Button>
+            <Button onClick={changePassword} disabled={savingPwd || newPassword.length < 6} className="gradient-primary text-primary-foreground">
+              {savingPwd ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Definir senha'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
