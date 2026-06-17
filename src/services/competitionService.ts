@@ -111,6 +111,7 @@ export async function saveCompetition(state: CompetitionState, existingId?: stri
         genero: a.genero,
         codigo: a.codigo || null,
         modalidade: a.modalidade || null,
+        inscricao_individual: (a as any).inscricaoIndividual ?? false,
       }))
     );
   }
