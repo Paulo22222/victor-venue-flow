@@ -18,6 +18,7 @@ interface Match {
   placar_a: number | null; placar_b: number | null; data: string | null; horario: string | null;
   local: string | null; modalidade: string | null; esporte: string | null;
   finalizada: boolean | null;
+  detalhes_placar?: { sets?: number[][] } | null;
 }
 interface Modality { id: string; nome: string; }
 // nome+modalidade -> genero
