@@ -316,6 +316,121 @@ const Stage6Summary = () => {
     );
   };
 
+  const ManualMatchDialog = () => {
+    const ctx = manualDialog;
+    const [rodada, setRodada] = useState<number>(ctx?.jogo?.rodada ?? 1);
+    const [a, setA] = useState<string>(ctx?.jogo?.participanteA ?? '');
+    const [b, setB] = useState<string>(ctx?.jogo?.participanteB ?? '');
+    const [savingM, setSavingM] = useState(false);
+    useEffect(() => {
+      setRodada(ctx?.jogo?.rodada ?? 1);
+      setA(ctx?.jogo?.participanteA ?? '');
+      setB(ctx?.jogo?.participanteB ?? '');
+    }, [ctx?.jogo?.id, ctx?.mod]);
+    if (!ctx) return null;
+    const equipesMod = competidores.equipes.filter(e => (e.modalidade || '').toUpperCase() === ctx.mod.toUpperCase());
+    const opcoes = equipesMod.map(e => e.nome);
+    const handleSave = async () => {
+      if (!competitionId) return toast({ title: 'Salve o evento primeiro', variant: 'destructive' });
+      if (!a || !b || a === b) return toast({ title: 'Selecione duas equipes diferentes', variant: 'destructive' });
+      setSavingM(true);
+      try {
+        if (ctx.jogo && isUuid(ctx.jogo.id)) {
+          await updateMatchParticipants(ctx.jogo.id, a, b);
+          updateJogo(ctx.jogo.id, { participanteA: a, participanteB: b, manual: true } as any);
+        } else {
+          const created = await createManualMatch(competitionId, { rodada, participanteA: a, participanteB: b, modalidade: ctx.mod });
+          // adicionar localmente
+          const novo: Jogo = { id: created.id, rodada, participanteA: a, participanteB: b, modalidade: ctx.mod, esporte: ctx.mod, manual: true } as any;
+          (state.jogos as any).push(novo);
+          updateJogo(created.id, { manual: true } as any);
+        }
+        toast({ title: ctx.jogo ? 'Confronto atualizado' : 'Confronto manual criado' });
+        setManualDialog(null);
+      } catch (e: any) {
+        toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+      } finally { setSavingM(false); }
+    };
+    return (
+      <Dialog open={!!ctx} onOpenChange={(o) => !o && setManualDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><PlusCircle className="w-5 h-5 text-primary" /> {ctx.jogo ? 'Editar confronto' : 'Adicionar confronto manual'} — {ctx.mod}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            {!ctx.jogo && (
+              <div><Label className="text-xs">Rodada</Label><Input type="number" min={1} value={rodada} onChange={ev => setRodada(Math.max(1, Number(ev.target.value)))} /></div>
+            )}
+            <div>
+              <Label className="text-xs">Equipe A</Label>
+              <Select value={a} onValueChange={setA}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>{opcoes.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Equipe B</Label>
+              <Select value={b} onValueChange={setB}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>{opcoes.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Confrontos manuais não são sobrescritos pela propagação automática de vencedores.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualDialog(null)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={savingM} className="gradient-primary text-primary-foreground gap-2">
+              {savingM ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  const HistoryDialog = () => {
+    const j = historyDialog;
+    const [rows, setRows] = useState<MatchHistoryRow[]>([]);
+    const [loadingH, setLoadingH] = useState(false);
+    useEffect(() => {
+      if (!j) return;
+      setLoadingH(true);
+      getMatchHistory(j.id).then(setRows).catch(() => setRows([])).finally(() => setLoadingH(false));
+    }, [j?.id]);
+    if (!j) return null;
+    return (
+      <Dialog open={!!j} onOpenChange={(o) => !o && setHistoryDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><History className="w-5 h-5 text-primary" /> Histórico de placar</DialogTitle></DialogHeader>
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            <p className="text-xs text-muted-foreground">{j.participanteA} vs {j.participanteB}</p>
+            {loadingH ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> :
+              rows.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">Nenhuma alteração registrada.</p> :
+              rows.map(r => (
+                <div key={r.id} className="rounded border p-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs">{r.placar_a_old ?? '–'}x{r.placar_b_old ?? '–'} → <strong className="text-primary">{r.placar_a_new ?? '–'}x{r.placar_b_new ?? '–'}</strong></span>
+                    <span className="text-[10px] text-muted-foreground">{new Date(r.changed_at).toLocaleString('pt-BR')}</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">por {r.changed_by_name || 'usuário'}</div>
+                </div>
+              ))
+            }
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  const handleDeleteMatch = async (j: Jogo) => {
+    if (!confirm(`Excluir confronto ${j.participanteA} x ${j.participanteB}?`)) return;
+    try {
+      if (isUuid(j.id)) await deleteMatch(j.id);
+      // Remove do estado local
+      const idx = state.jogos.findIndex(x => x.id === j.id);
+      if (idx >= 0) (state.jogos as any).splice(idx, 1);
+      updateJogo(j.id, { participanteA: '', participanteB: '' } as any); // força re-render
+      toast({ title: 'Confronto removido' });
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    }
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in-up py-6">
