@@ -11,7 +11,7 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   isOrganizer: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<AppRole>;
   signOut: () => Promise<void>;
 }
 
@@ -68,9 +68,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => { active = false; subscription.unsubscribe(); };
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const signIn = async (email: string, password: string): Promise<AppRole> => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    const userId = data.user?.id;
+    if (!userId) throw new Error('Falha ao obter usuário');
+    const r = await fetchRole(userId);
+    setRole(r);
+    return r;
   };
 
   const signOut = async () => {
