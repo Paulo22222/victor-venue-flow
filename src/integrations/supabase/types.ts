@@ -109,6 +109,66 @@ export type Database = {
         }
         Relationships: []
       }
+      competition_match_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          changed_by_name: string | null
+          competition_id: string
+          finalizada_new: boolean | null
+          finalizada_old: boolean | null
+          id: string
+          match_id: string
+          placar_a_new: number | null
+          placar_a_old: number | null
+          placar_b_new: number | null
+          placar_b_old: number | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_name?: string | null
+          competition_id: string
+          finalizada_new?: boolean | null
+          finalizada_old?: boolean | null
+          id?: string
+          match_id: string
+          placar_a_new?: number | null
+          placar_a_old?: number | null
+          placar_b_new?: number | null
+          placar_b_old?: number | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_name?: string | null
+          competition_id?: string
+          finalizada_new?: boolean | null
+          finalizada_old?: boolean | null
+          id?: string
+          match_id?: string
+          placar_a_new?: number | null
+          placar_a_old?: number | null
+          placar_b_new?: number | null
+          placar_b_old?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competition_match_history_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "competitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_match_history_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "competition_matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       competition_matches: {
         Row: {
           competition_id: string
@@ -119,6 +179,7 @@ export type Database = {
           horario: string | null
           id: string
           local: string | null
+          manual: boolean
           modalidade: string | null
           participante_a: string
           participante_b: string
@@ -135,6 +196,7 @@ export type Database = {
           horario?: string | null
           id?: string
           local?: string | null
+          manual?: boolean
           modalidade?: string | null
           participante_a: string
           participante_b: string
@@ -151,6 +213,7 @@ export type Database = {
           horario?: string | null
           id?: string
           local?: string | null
+          manual?: boolean
           modalidade?: string | null
           participante_a?: string
           participante_b?: string
@@ -278,6 +341,7 @@ export type Database = {
           nome: string
           organizadores: string | null
           outros_envolvidos: string | null
+          owner_id: string | null
           responsavel: string | null
           sistema_disputa: string | null
           sugestao_manual: string | null
@@ -286,6 +350,7 @@ export type Database = {
           tempo_total_disponivel: number | null
           tipo_competidor: string | null
           updated_at: string
+          venue_id: string | null
         }
         Insert: {
           coordenador_quadra?: string | null
@@ -308,6 +373,7 @@ export type Database = {
           nome: string
           organizadores?: string | null
           outros_envolvidos?: string | null
+          owner_id?: string | null
           responsavel?: string | null
           sistema_disputa?: string | null
           sugestao_manual?: string | null
@@ -316,6 +382,7 @@ export type Database = {
           tempo_total_disponivel?: number | null
           tipo_competidor?: string | null
           updated_at?: string
+          venue_id?: string | null
         }
         Update: {
           coordenador_quadra?: string | null
@@ -338,6 +405,7 @@ export type Database = {
           nome?: string
           organizadores?: string | null
           outros_envolvidos?: string | null
+          owner_id?: string | null
           responsavel?: string | null
           sistema_disputa?: string | null
           sugestao_manual?: string | null
@@ -346,8 +414,17 @@ export type Database = {
           tempo_total_disponivel?: number | null
           tipo_competidor?: string | null
           updated_at?: string
+          venue_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "competitions_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       organizer_team_members: {
         Row: {
@@ -431,30 +508,36 @@ export type Database = {
       }
       organizer_teams: {
         Row: {
+          contato: string | null
           created_at: string
           genero: string | null
           id: string
           modalidade: string
           nome: string
           owner_id: string
+          responsavel: string | null
           updated_at: string
         }
         Insert: {
+          contato?: string | null
           created_at?: string
           genero?: string | null
           id?: string
           modalidade: string
           nome: string
           owner_id: string
+          responsavel?: string | null
           updated_at?: string
         }
         Update: {
+          contato?: string | null
           created_at?: string
           genero?: string | null
           id?: string
           modalidade?: string
           nome?: string
           owner_id?: string
+          responsavel?: string | null
           updated_at?: string
         }
         Relationships: []

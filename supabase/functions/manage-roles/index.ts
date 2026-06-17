@@ -181,6 +181,26 @@ Deno.serve(async (req) => {
       });
     }
 
+    // POST ?action=set-password — admin altera senha de qualquer usuário
+    if (method === "POST" && action === "set-password") {
+      const { user_id, new_password } = await req.json();
+      if (!user_id || !new_password) {
+        return new Response(JSON.stringify({ error: "user_id e new_password obrigatórios" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (String(new_password).length < 6) {
+        return new Response(JSON.stringify({ error: "A senha deve ter pelo menos 6 caracteres" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(user_id, { password: new_password });
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // POST (default) — update role
     if (method === "POST") {
       const { user_id, role } = await req.json();

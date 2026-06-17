@@ -14,6 +14,7 @@ import { Plus, Trash2, Pencil, Loader2, MapPin } from 'lucide-react';
 interface Venue {
   id: string; nome: string; endereco: string | null; capacidade: number | null;
   disponivel: boolean; modalidade_id: string | null; modalidade_nome: string | null; observacoes: string | null;
+  eventsCount?: number;
 }
 interface Modality { id: string; nome: string; }
 
@@ -29,11 +30,15 @@ const AdminVenues = () => {
 
   const fetch = async () => {
     setLoading(true);
-    const [v, m] = await Promise.all([
+    const [v, m, c] = await Promise.all([
       supabase.from('venues').select('*').order('nome'),
       supabase.from('sport_modalities').select('id, nome').eq('ativo', true).order('nome'),
+      supabase.from('competitions').select('venue_id').not('venue_id', 'is', null),
     ]);
-    setItems((v.data ?? []) as Venue[]);
+    const counts: Record<string, number> = {};
+    (c.data ?? []).forEach((row: any) => { if (row.venue_id) counts[row.venue_id] = (counts[row.venue_id] || 0) + 1; });
+    const venuesWithCount = ((v.data ?? []) as any[]).map(x => ({ ...x, eventsCount: counts[x.id] || 0 }));
+    setItems(venuesWithCount as any);
     setMods((m.data ?? []) as Modality[]);
     setLoading(false);
   };
@@ -69,9 +74,12 @@ const AdminVenues = () => {
     setOpen(false); fetch();
   };
 
-  const remove = async (id: string) => {
+  const remove = async (v: Venue) => {
+    if ((v.eventsCount || 0) > 0) {
+      return toast({ title: 'Local em uso', description: `Existem ${v.eventsCount} evento(s) vinculados. Desvincule antes de excluir.`, variant: 'destructive' });
+    }
     if (!confirm('Excluir este local?')) return;
-    await supabase.from('venues').delete().eq('id', id);
+    await supabase.from('venues').delete().eq('id', v.id);
     fetch();
   };
 
@@ -124,7 +132,7 @@ const AdminVenues = () => {
             <div className="rounded-lg border overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted">
-                  <tr><th className="p-3 text-left">Local</th><th className="p-3 text-left">Modalidade</th><th className="p-3 text-left">Capacidade</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">Ações</th></tr>
+                  <tr><th className="p-3 text-left">Local</th><th className="p-3 text-left">Modalidade</th><th className="p-3 text-left">Capacidade</th><th className="p-3 text-left">Eventos</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">Ações</th></tr>
                 </thead>
                 <tbody>
                   {items.map(v => (
@@ -132,10 +140,11 @@ const AdminVenues = () => {
                       <td className="p-3"><div className="font-medium">{v.nome}</div><div className="text-xs text-muted-foreground">{v.endereco}</div></td>
                       <td className="p-3">{v.modalidade_nome ?? <span className="text-muted-foreground">—</span>}</td>
                       <td className="p-3">{v.capacidade ?? '-'}</td>
+                      <td className="p-3"><Badge variant={(v.eventsCount || 0) > 0 ? 'default' : 'outline'}>{v.eventsCount || 0}</Badge></td>
                       <td className="p-3"><Badge variant={v.disponivel ? 'default' : 'secondary'}>{v.disponivel ? 'Disponível' : 'Indisponível'}</Badge></td>
                       <td className="p-3 text-right">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(v)}><Pencil className="w-3.5 h-3.5" /></Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => remove(v.id)}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => remove(v)} disabled={(v.eventsCount || 0) > 0}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
                       </td>
                     </tr>
                   ))}

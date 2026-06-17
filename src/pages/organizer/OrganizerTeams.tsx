@@ -10,13 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Trash2, Users, Loader2, ChevronRight, UserPlus, Upload, FileSpreadsheet, Download } from 'lucide-react';
+import { Plus, Trash2, Users, Loader2, ChevronRight, UserPlus, Upload, FileSpreadsheet, Download, Pencil } from 'lucide-react';
 import { uploadAthletePhoto } from '@/utils/athletePhoto';
 import { parseAthletesFile, downloadTemplate } from '@/utils/athleteImport';
 
 interface Modality { id: string; nome: string; }
 interface Team {
   id: string; nome: string; genero: string | null; modalidade: string; created_at: string;
+  responsavel?: string | null; contato?: string | null; owner_id?: string;
 }
 interface Member {
   id: string; team_id: string | null; nome: string; data_nascimento: string | null;
@@ -34,7 +35,8 @@ const emptyMember = {
 };
 
 const OrganizerTeams = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const isAdmin = role === 'admin';
   const [teams, setTeams] = useState<Team[]>([]);
   const [modalities, setModalities] = useState<Modality[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,16 +46,21 @@ const OrganizerTeams = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [memberDialog, setMemberDialog] = useState(false);
   const [newMember, setNewMember] = useState<any>(emptyMember);
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [importing, setImporting] = useState(false);
   const importInput = useRef<HTMLInputElement>(null);
+  const [editTeamDialog, setEditTeamDialog] = useState<Team | null>(null);
+  const [editTeamForm, setEditTeamForm] = useState({ nome: '', genero: 'masculino', modalidade: '', responsavel: '', contato: '' });
 
   const fetchAll = async () => {
     if (!user) return;
     setLoading(true);
+    let q = supabase.from('organizer_teams').select('*').order('created_at', { ascending: false });
+    if (!isAdmin) q = q.eq('owner_id', user.id);
     const [t, m] = await Promise.all([
-      supabase.from('organizer_teams').select('*').eq('owner_id', user.id).order('created_at', { ascending: false }),
+      q,
       supabase.from('sport_modalities').select('id, nome').eq('ativo', true).order('nome'),
     ]);
     setTeams((t.data ?? []) as Team[]);
@@ -92,7 +99,21 @@ const OrganizerTeams = () => {
     fetchAll();
   };
 
-  const openMemberDialog = () => { setNewMember(emptyMember); setPhotoFile(null); setMemberDialog(true); };
+  const openMemberDialog = () => { setEditingMemberId(null); setNewMember(emptyMember); setPhotoFile(null); setMemberDialog(true); };
+  const openEditMember = (m: Member) => {
+    setEditingMemberId(m.id);
+    setNewMember({
+      nome: m.nome || '', foto_url: m.foto_url || '', telefone: m.telefone || '',
+      rg: m.rg || '', data_nascimento: m.data_nascimento || '',
+      campus: m.campus || '', instituicao: m.instituicao || '', curso: m.curso || '',
+      genero: m.genero || 'masculino',
+      alergias: m.alergias || '', tipo_sanguineo: m.tipo_sanguineo || '',
+      enfermidades: m.enfermidades || '', contato_emergencia: m.contato_emergencia || '',
+      observacoes: m.observacoes || '',
+    });
+    setPhotoFile(null);
+    setMemberDialog(true);
+  };
 
   const handleAddMember = async () => {
     if (!selectedTeam) return;
@@ -112,7 +133,7 @@ const OrganizerTeams = () => {
         return toast({ title: 'Erro na foto', description: e.message, variant: 'destructive' });
       } finally { setPhotoUploading(false); }
     }
-    const payload = {
+    const payload: any = {
       team_id: selectedTeam.id,
       nome: newMember.nome.trim(),
       codigo: newMember.rg.trim(),
@@ -131,11 +152,33 @@ const OrganizerTeams = () => {
       contato_emergencia: newMember.contato_emergencia || null,
       observacoes: newMember.observacoes || null,
     };
-    const { error } = await supabase.from('organizer_team_members').insert(payload);
+    const { error } = editingMemberId
+      ? await supabase.from('organizer_team_members').update(payload).eq('id', editingMemberId)
+      : await supabase.from('organizer_team_members').insert(payload);
     if (error) return toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     setMemberDialog(false);
     fetchMembers(selectedTeam.id);
-    toast({ title: 'Atleta adicionado!' });
+    toast({ title: editingMemberId ? 'Atleta atualizado!' : 'Atleta adicionado!' });
+  };
+
+  const openEditTeam = (t: Team) => {
+    setEditTeamDialog(t);
+    setEditTeamForm({ nome: t.nome, genero: t.genero || 'masculino', modalidade: t.modalidade, responsavel: t.responsavel || '', contato: t.contato || '' });
+  };
+  const saveEditTeam = async () => {
+    if (!editTeamDialog) return;
+    if (!editTeamForm.nome.trim()) return toast({ title: 'Nome obrigatório', variant: 'destructive' });
+    const { error } = await supabase.from('organizer_teams').update({
+      nome: editTeamForm.nome.trim(),
+      genero: editTeamForm.genero,
+      modalidade: editTeamForm.modalidade,
+      responsavel: editTeamForm.responsavel || null,
+      contato: editTeamForm.contato || null,
+    }).eq('id', editTeamDialog.id);
+    if (error) return toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    setEditTeamDialog(null);
+    fetchAll();
+    toast({ title: 'Equipe atualizada' });
   };
 
   const handleDeleteMember = async (id: string) => {
@@ -243,6 +286,9 @@ const OrganizerTeams = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title="Editar equipe" onClick={(e) => { e.stopPropagation(); openEditTeam(t); }}>
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleDeleteTeam(t.id); }}>
                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
                       </Button>
@@ -277,6 +323,9 @@ const OrganizerTeams = () => {
                       <div className="font-medium truncate text-sm">{m.nome}</div>
                       <div className="text-xs text-muted-foreground truncate">{m.rg ? `RG ${m.rg}` : ''} {m.curso && `· ${m.curso}`} {m.campus && `· ${m.campus}`}</div>
                     </div>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" title="Editar" onClick={() => openEditMember(m)}>
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteMember(m.id)}>
                       <Trash2 className="w-3.5 h-3.5 text-destructive" />
                     </Button>
@@ -291,7 +340,7 @@ const OrganizerTeams = () => {
       {/* Dialog de novo atleta — completo */}
       <Dialog open={memberDialog} onOpenChange={setMemberDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Adicionar atleta</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingMemberId ? 'Editar atleta' : 'Adicionar atleta'}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="flex items-start gap-4">
               <div className="shrink-0">
@@ -339,8 +388,44 @@ const OrganizerTeams = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setMemberDialog(false)}>Cancelar</Button>
             <Button onClick={handleAddMember} disabled={photoUploading} className="gradient-primary text-primary-foreground">
-              {photoUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Adicionar'}
+              {photoUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingMemberId ? 'Salvar' : 'Adicionar')}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Editar equipe */}
+      <Dialog open={!!editTeamDialog} onOpenChange={(o) => !o && setEditTeamDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Editar equipe</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-xs">Nome *</Label><Input value={editTeamForm.nome} onChange={e => setEditTeamForm(s => ({ ...s, nome: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Modalidade</Label>
+                <Select value={editTeamForm.modalidade} onValueChange={v => setEditTeamForm(s => ({ ...s, modalidade: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{modalities.map(m => <SelectItem key={m.id} value={m.nome}>{m.nome}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Gênero</Label>
+                <Select value={editTeamForm.genero} onValueChange={v => setEditTeamForm(s => ({ ...s, genero: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="masculino">Masculino</SelectItem>
+                    <SelectItem value="feminino">Feminino</SelectItem>
+                    <SelectItem value="misto">Misto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div><Label className="text-xs">Responsável</Label><Input value={editTeamForm.responsavel} onChange={e => setEditTeamForm(s => ({ ...s, responsavel: e.target.value }))} placeholder="Nome do responsável" /></div>
+            <div><Label className="text-xs">Contato (telefone/e-mail)</Label><Input value={editTeamForm.contato} onChange={e => setEditTeamForm(s => ({ ...s, contato: e.target.value }))} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTeamDialog(null)}>Cancelar</Button>
+            <Button onClick={saveEditTeam} className="gradient-primary text-primary-foreground">Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

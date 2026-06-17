@@ -3,6 +3,7 @@ export interface EventData {
   data: string;
   horario: string;
   local: string;
+  venueId?: string;
   modalidade: string;
   organizadores: string;
   emailOrganizador: string;
@@ -26,7 +27,7 @@ export interface Equipe {
   genero: 'masculino' | 'feminino' | 'misto';
   integrantes: Atleta[];
   modalidade?: string;
-  organizerTeamId?: string; // referência ao acervo do organizador, se aplicável
+  organizerTeamId?: string;
 }
 
 export interface Modalidade {
@@ -47,7 +48,6 @@ export interface DisputaData {
   sistema: SistemaDisputa;
   modalidadeSelecionada: string;
   sugestaoManual: string;
-  // sistema por modalidade (Etapa 4 nova)
   porModalidade: Record<string, SistemaDisputa>;
 }
 
@@ -79,6 +79,7 @@ export interface Jogo {
   modalidade?: string;
   esporte?: string;
   finalizada?: boolean;
+  manual?: boolean;
 }
 
 export interface CompetitionState {

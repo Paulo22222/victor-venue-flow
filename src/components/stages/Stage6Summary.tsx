@@ -8,10 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ChevronLeft, Save, CheckCircle2, FileText, Trophy, Loader2, Minus, Plus, Radio, Flag, CalendarClock, MapPin, Lock } from 'lucide-react';
+import { ChevronLeft, Save, CheckCircle2, FileText, Trophy, Loader2, Minus, Plus, Radio, Flag, CalendarClock, MapPin, Lock, History, PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import { generateCompetitionPDF } from '@/utils/pdfGenerator';
 import { getSportRule, pontosRanking } from '@/utils/sportRules';
-import { updateMatchScore, updateMatchSchedule, finalizeMatch } from '@/services/competitionService';
+import { updateMatchScore, updateMatchSchedule, finalizeMatch, createManualMatch, updateMatchParticipants, deleteMatch, getMatchHistory, MatchHistoryRow } from '@/services/competitionService';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import type { Jogo } from '@/types/competition';
@@ -29,6 +29,8 @@ const Stage6Summary = () => {
   const [finalizeRound, setFinalizeRound] = useState<{ mod: string; rodada: number } | null>(null);
   const [rescheduleJogo, setRescheduleJogo] = useState<Jogo | null>(null);
   const [venues, setVenues] = useState<{ id: string; nome: string; modalidade_nome: string | null }[]>([]);
+  const [manualDialog, setManualDialog] = useState<{ mod: string; jogo?: Jogo } | null>(null);
+  const [historyDialog, setHistoryDialog] = useState<Jogo | null>(null);
 
   useEffect(() => {
     supabase.from('venues').select('id, nome, modalidade_nome').eq('disponivel', true).order('nome')
@@ -36,10 +38,12 @@ const Stage6Summary = () => {
   }, []);
 
   // Propaga vencedor para o próximo jogo da chave (substitui "Vencedor(A x B)")
+  // IMPORTANTE: jogos marcados como `manual` NÃO são sobrescritos.
   const propagarVencedor = async (jogoDecidido: Jogo, vencedor: string) => {
     const placeholder = `Vencedor(${jogoDecidido.participanteA} x ${jogoDecidido.participanteB})`;
     const proximos = jogos.filter(
-      j => (j.modalidade || '').toUpperCase() === (jogoDecidido.modalidade || '').toUpperCase() &&
+      j => !(j as any).manual &&
+        (j.modalidade || '').toUpperCase() === (jogoDecidido.modalidade || '').toUpperCase() &&
         j.rodada > jogoDecidido.rodada &&
         (j.participanteA === placeholder || j.participanteB === placeholder)
     );
@@ -312,6 +316,121 @@ const Stage6Summary = () => {
     );
   };
 
+  const ManualMatchDialog = () => {
+    const ctx = manualDialog;
+    const [rodada, setRodada] = useState<number>(ctx?.jogo?.rodada ?? 1);
+    const [a, setA] = useState<string>(ctx?.jogo?.participanteA ?? '');
+    const [b, setB] = useState<string>(ctx?.jogo?.participanteB ?? '');
+    const [savingM, setSavingM] = useState(false);
+    useEffect(() => {
+      setRodada(ctx?.jogo?.rodada ?? 1);
+      setA(ctx?.jogo?.participanteA ?? '');
+      setB(ctx?.jogo?.participanteB ?? '');
+    }, [ctx?.jogo?.id, ctx?.mod]);
+    if (!ctx) return null;
+    const equipesMod = competidores.equipes.filter(e => (e.modalidade || '').toUpperCase() === ctx.mod.toUpperCase());
+    const opcoes = equipesMod.map(e => e.nome);
+    const handleSave = async () => {
+      if (!competitionId) return toast({ title: 'Salve o evento primeiro', variant: 'destructive' });
+      if (!a || !b || a === b) return toast({ title: 'Selecione duas equipes diferentes', variant: 'destructive' });
+      setSavingM(true);
+      try {
+        if (ctx.jogo && isUuid(ctx.jogo.id)) {
+          await updateMatchParticipants(ctx.jogo.id, a, b);
+          updateJogo(ctx.jogo.id, { participanteA: a, participanteB: b, manual: true } as any);
+        } else {
+          const created = await createManualMatch(competitionId, { rodada, participanteA: a, participanteB: b, modalidade: ctx.mod });
+          // adicionar localmente
+          const novo: Jogo = { id: created.id, rodada, participanteA: a, participanteB: b, modalidade: ctx.mod, esporte: ctx.mod, manual: true } as any;
+          (state.jogos as any).push(novo);
+          updateJogo(created.id, { manual: true } as any);
+        }
+        toast({ title: ctx.jogo ? 'Confronto atualizado' : 'Confronto manual criado' });
+        setManualDialog(null);
+      } catch (e: any) {
+        toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+      } finally { setSavingM(false); }
+    };
+    return (
+      <Dialog open={!!ctx} onOpenChange={(o) => !o && setManualDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><PlusCircle className="w-5 h-5 text-primary" /> {ctx.jogo ? 'Editar confronto' : 'Adicionar confronto manual'} — {ctx.mod}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            {!ctx.jogo && (
+              <div><Label className="text-xs">Rodada</Label><Input type="number" min={1} value={rodada} onChange={ev => setRodada(Math.max(1, Number(ev.target.value)))} /></div>
+            )}
+            <div>
+              <Label className="text-xs">Equipe A</Label>
+              <Select value={a} onValueChange={setA}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>{opcoes.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Equipe B</Label>
+              <Select value={b} onValueChange={setB}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>{opcoes.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Confrontos manuais não são sobrescritos pela propagação automática de vencedores.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualDialog(null)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={savingM} className="gradient-primary text-primary-foreground gap-2">
+              {savingM ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  const HistoryDialog = () => {
+    const j = historyDialog;
+    const [rows, setRows] = useState<MatchHistoryRow[]>([]);
+    const [loadingH, setLoadingH] = useState(false);
+    useEffect(() => {
+      if (!j) return;
+      setLoadingH(true);
+      getMatchHistory(j.id).then(setRows).catch(() => setRows([])).finally(() => setLoadingH(false));
+    }, [j?.id]);
+    if (!j) return null;
+    return (
+      <Dialog open={!!j} onOpenChange={(o) => !o && setHistoryDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><History className="w-5 h-5 text-primary" /> Histórico de placar</DialogTitle></DialogHeader>
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            <p className="text-xs text-muted-foreground">{j.participanteA} vs {j.participanteB}</p>
+            {loadingH ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> :
+              rows.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">Nenhuma alteração registrada.</p> :
+              rows.map(r => (
+                <div key={r.id} className="rounded border p-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs">{r.placar_a_old ?? '–'}x{r.placar_b_old ?? '–'} → <strong className="text-primary">{r.placar_a_new ?? '–'}x{r.placar_b_new ?? '–'}</strong></span>
+                    <span className="text-[10px] text-muted-foreground">{new Date(r.changed_at).toLocaleString('pt-BR')}</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">por {r.changed_by_name || 'usuário'}</div>
+                </div>
+              ))
+            }
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  const handleDeleteMatch = async (j: Jogo) => {
+    if (!confirm(`Excluir confronto ${j.participanteA} x ${j.participanteB}?`)) return;
+    try {
+      if (isUuid(j.id)) await deleteMatch(j.id);
+      // Remove do estado local
+      const idx = state.jogos.findIndex(x => x.id === j.id);
+      if (idx >= 0) (state.jogos as any).splice(idx, 1);
+      updateJogo(j.id, { participanteA: '', participanteB: '' } as any); // força re-render
+      toast({ title: 'Confronto removido' });
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    }
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in-up py-6">
@@ -454,9 +573,14 @@ const Stage6Summary = () => {
                     <Radio className="w-4 h-4 text-destructive animate-pulse" />
                     Chaveamento ao vivo — {m.nome}
                   </h3>
-                  <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">
-                    {regra.descricaoPontuacao}
-                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">{regra.descricaoPontuacao}</span>
+                    {!state.finalizado && competitionId && (
+                      <Button size="sm" variant="outline" className="gap-1 h-7" onClick={() => setManualDialog({ mod: m.nome })}>
+                        <PlusCircle className="w-3.5 h-3.5" /> Confronto manual
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <CardContent className="p-5">
                   {rkeys.length === 0 ? (
@@ -525,12 +649,30 @@ const Stage6Summary = () => {
                                       <Badge variant="outline" className={`text-[10px] uppercase tracking-wider ${statusColor} border-0`}>
                                         {finalizada && <Lock className="w-3 h-3 mr-1 inline" />}
                                         {statusLabel}
+                                        {(j as any).manual && <span className="ml-1 text-[9px]">· manual</span>}
                                       </Badge>
-                                      {finalizada && !state.finalizado && (
-                                        <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => reabrirPartida(j)}>
-                                          Reabrir
-                                        </Button>
-                                      )}
+                                      <div className="flex items-center gap-1">
+                                        {finalizada && (
+                                          <Button size="icon" variant="ghost" className="h-6 w-6" title="Histórico de placar" onClick={() => setHistoryDialog(j)}>
+                                            <History className="w-3.5 h-3.5" />
+                                          </Button>
+                                        )}
+                                        {!state.finalizado && !finalizada && (
+                                          <Button size="icon" variant="ghost" className="h-6 w-6" title="Editar confronto" onClick={() => setManualDialog({ mod: m.nome, jogo: j })}>
+                                            <Pencil className="w-3.5 h-3.5" />
+                                          </Button>
+                                        )}
+                                        {!state.finalizado && !finalizada && (
+                                          <Button size="icon" variant="ghost" className="h-6 w-6" title="Excluir confronto" onClick={() => handleDeleteMatch(j)}>
+                                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                                          </Button>
+                                        )}
+                                        {finalizada && !state.finalizado && (
+                                          <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => reabrirPartida(j)}>
+                                            Reabrir
+                                          </Button>
+                                        )}
+                                      </div>
                                     </div>
                                     <ScoreRow
                                       name={displayName(j.participanteA)}
@@ -596,6 +738,8 @@ const Stage6Summary = () => {
 
       <FinalizeRoundDialog />
       <RescheduleDialog />
+      <ManualMatchDialog />
+      <HistoryDialog />
 
       <div className="flex justify-between pt-2">
         <Button variant="outline" onClick={() => setStep(5)} className="gap-2">
