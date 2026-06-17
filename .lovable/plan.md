@@ -1,73 +1,67 @@
-## Fase 2 — Plano de implementação
+# Fase 3 — Modalidades Esportivas Inteligentes
 
-Antes de começar quero confirmar o escopo, porque são 6 features com **3 migrações de banco**, mudanças na **edge function** e várias telas. Vou implementar exatamente o que você pediu.
+Objetivo: cada modalidade passa a ter regras próprias de pontuação, classificação e participação (coletiva ou individual), sem quebrar o que já funciona.
 
----
+## 1. Banco de dados (1 migração)
 
-### 1. Aba Locais ↔ Cadastro de Evento
+Adicionar em `sport_modalities`:
+- `tipo_participacao text not null default 'coletiva'` — valores: `coletiva` | `individual`
+- `regra_pontuacao text not null default 'padrao'` — chave que mapeia para o conjunto de regras no front (`futsal`, `volei`, `tenis_mesa`, `xadrez`, `corrida`, `padrao`)
+- `colunas_classificacao jsonb` — opcional, define quais colunas a tabela de classificação exibe (ex: `["V","E","D","GP","GC","SG","Pts"]`)
 
-**Migração**: adicionar `venue_id uuid REFERENCES venues(id)` em `competitions`.
+Adicionar em `competition_matches`:
+- `detalhes_placar jsonb` — guarda sets/games/parciais quando aplicável (ex: `{ sets: [[25,20],[23,25],[25,18]] }`). Placar agregado continua em `placar_a/placar_b`.
 
-**Stage1Event.tsx**: trocar o campo "Local" texto livre por um **Select de locais cadastrados** (carrega de `venues`) com opção "Outro" que volta a aceitar texto livre. Mostra endereço/capacidade abaixo. Persiste `venue_id` + `local` (nome).
+Adicionar em `competition_athletes`:
+- `inscricao_individual boolean not null default false` — marca atletas inscritos diretamente (sem equipe) em modalidades individuais.
 
-**RescheduleDialog (Stage6)**: já usa venues filtrados por modalidade — manter, mas pré-selecionar o venue do evento.
+Atualizar a seed das modalidades já existentes para os valores corretos (futsal/volei/basquete → coletiva; tênis de mesa/xadrez/corrida → individual).
 
-**AdminVenues**: na tabela mostrar coluna "Eventos vinculados" (count de competitions com aquele venue_id), e impedir delete se houver vínculo.
+## 2. Camada de regras (`src/utils/sportRules.ts`)
 
----
+Expandir o arquivo já existente para expor, por modalidade:
+- `tipo: 'coletiva' | 'individual'`
+- `colunas: { key, label, formula }[]` — define a tabela de classificação
+- `calcularLinhaClassificacao(partidas, participanteId)` — devolve `{ V, E, D, GP, GC, SG, Pts, SetsV, SetsP, ... }` conforme o esporte
+- `componenteLancamentoPlacar` — chave para o front escolher o input (placar simples, sets, games)
 
-### 2. Chaveamento Manual (opção extra)
+Implementar inicialmente:
+- **Futsal**: V/E/D, GP, GC, SG, Pts (3/1/0). Input: placar simples.
+- **Vôlei**: SetsV, SetsP, PontosPro, PontosContra, Pts (vitória=3 em 3 sets / 2 em 5 sets; derrota com set=1). Input: lista de sets.
+- **Tênis de Mesa**: V, D, GamesV, GamesP, Pts. Input: lista de games. Tipo individual.
+- **Xadrez / Corrida**: estrutura básica individual (placeholder, sem mudar regras vigentes).
+- **padrao**: mantém o comportamento atual para não quebrar nada.
 
-**Migração**: adicionar `manual boolean DEFAULT false` em `competition_matches`.
+## 3. Front — adaptação automática
 
-**Stage6Summary**: novo botão **"Adicionar confronto manual"** ao lado de cada modalidade. Abre dialog para escolher rodada + Equipe A + Equipe B (dropdowns com equipes da modalidade). Botão **"Editar confronto"** em cada card de jogo permite trocar participantes. Botão **excluir** o jogo.
+- `Stage6Summary.tsx` (lançamento de placares): detectar `regra_pontuacao` da partida e renderizar o input correto (simples / por sets / por games). Persistir agregado em `placar_a/placar_b` e detalhe em `detalhes_placar`.
+- Tabela de classificação (no `Stage6Summary` admin e no `PublicEvent`): renderizar colunas dinamicamente a partir de `colunas` da modalidade. Manter divisão por **modalidade + categoria (masculino/feminino/misto)** que já existe.
+- `Stage3Teams.tsx`: para modalidades com `tipo='individual'`, esconder UI de equipes da modalidade e mostrar "Inscrever atleta" (busca em `organizer_team_members` ou cadastro avulso), gravando em `competition_athletes` com `inscricao_individual=true`.
+- Chaveamento (`Stage6Summary` + manual): em modalidades individuais, os "participantes" do confronto são atletas, não equipes. Reaproveitar a UI de chaveamento manual já existente, trocando o seletor de equipe por seletor de atleta quando `tipo='individual'`.
+- `AdminModalities.tsx`: adicionar campos `tipo_participacao` e `regra_pontuacao` no formulário (selects).
 
-A função `propagarVencedor` passa a **ignorar matches com `manual=true`** — alterações manuais não são sobrescritas.
+## 4. Serviços
 
----
+`competitionService.ts`:
+- `updateMatchScore` passa a aceitar `detalhes_placar` opcional.
+- Funções de listagem de participantes da competição retornam `equipes` **ou** `atletas` conforme tipo da modalidade.
 
-### 3. Histórico de Alterações de Placares
+## 5. Fora de escopo (não tocar)
 
-**Migração**: nova tabela `competition_match_history` (match_id, competition_id, changed_by uuid, changed_at, placar_a_old/new, placar_b_old/new, finalizada_old/new). RLS: admin/organizer veem do próprio evento.
+- Login, permissões admin, locais, histórico de placares, edição de equipes/atletas — tudo continua como está.
+- Sem refatoração global; só os arquivos listados acima.
 
-**competitionService.updateMatchScore**: lê valores antigos antes do update e insere histórico (apenas quando match já estava finalizada).
+## Arquivos previstos
 
-**Stage6Summary**: botão "🕒" em cada jogo finalizado → drawer com lista cronológica: "Fulano alterou 2x1 → 3x1 em 17/06 14:32".
+- 1 migração SQL
+- `src/utils/sportRules.ts` (expandir)
+- `src/components/stages/Stage6Summary.tsx`
+- `src/components/stages/Stage3Teams.tsx`
+- `src/pages/admin/AdminModalities.tsx`
+- `src/pages/PublicEvent.tsx` (classificação dinâmica)
+- `src/services/competitionService.ts`
+- `src/types/competition.ts`
 
----
+## Pergunta antes de implementar
 
-### 4. Visibilidade de Eventos por Admin
-
-**Migração**: adicionar `owner_id uuid` em `competitions` (preenche `auth.uid()` no insert). Atualizar RLS SELECT para admin: `owner_id = auth.uid() OR owner_id IS NULL`. Anon/visitante continua vendo tudo (página pública).
-
-**competitionService.listCompetitions**: filtrar por `owner_id = current user`.
-**saveCompetition**: setar `owner_id` no insert.
-
----
-
-### 5. Alterar Senha de Usuário (admin)
-
-**manage-roles edge function**: nova action `?action=set-password` que recebe `{user_id, new_password}` e chama `supabaseAdmin.auth.admin.updateUserById(user_id, { password })`. Valida ≥6 chars.
-
-**AdminUsers.tsx**: botão 🔑 na linha do usuário → dialog "Nova senha" + "Confirmar" → toast.
-
----
-
-### 6. Edição de Atletas e Equipes (admin + organizador)
-
-**OrganizerTeams.tsx** (usado por ambos os perfis):
-
-- Botão **✏️ Editar equipe** ao lado do nome → dialog com nome, gênero, modalidade, responsável, contato (adicionar colunas se faltarem: `responsavel`, `contato` em `organizer_teams` via migração).
-- Botão **✏️ Editar atleta** em cada membro → reabre o dialog completo (mesma estrutura de adicionar) preenchido com os dados, salvando com UPDATE.
-- Para o **admin** acessando `/admin/athletes`: detectar role e, em vez de filtrar `owner_id = user.id`, listar **todas** as equipes (RLS já permite via `has_role admin`). Mostrar coluna "Dono" para distinguir.
-
----
-
-### Resumo dos arquivos tocados
-
-- **3 migrações SQL** (venue_id, manual+history, owner_id + organizer_teams extras)
-- **1 edge function** (manage-roles: action set-password)
-- **Edits**: Stage1Event, Stage6Summary, AdminVenues, AdminEvents, AdminUsers, OrganizerTeams, competitionService, types/competition
-- ~7 arquivos editados + 3 migrações + 1 função
-
-Posso executar tudo? Ou prefere que eu faça **item por item** (1→6) pra você revisar cada migração separadamente antes da próxima?
+Posso implementar tudo de uma vez, ou prefere por etapa (primeiro pontuação Futsal/Vôlei/TM, depois suporte individual)?
