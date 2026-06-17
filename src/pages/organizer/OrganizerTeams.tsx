@@ -99,7 +99,21 @@ const OrganizerTeams = () => {
     fetchAll();
   };
 
-  const openMemberDialog = () => { setNewMember(emptyMember); setPhotoFile(null); setMemberDialog(true); };
+  const openMemberDialog = () => { setEditingMemberId(null); setNewMember(emptyMember); setPhotoFile(null); setMemberDialog(true); };
+  const openEditMember = (m: Member) => {
+    setEditingMemberId(m.id);
+    setNewMember({
+      nome: m.nome || '', foto_url: m.foto_url || '', telefone: m.telefone || '',
+      rg: m.rg || '', data_nascimento: m.data_nascimento || '',
+      campus: m.campus || '', instituicao: m.instituicao || '', curso: m.curso || '',
+      genero: m.genero || 'masculino',
+      alergias: m.alergias || '', tipo_sanguineo: m.tipo_sanguineo || '',
+      enfermidades: m.enfermidades || '', contato_emergencia: m.contato_emergencia || '',
+      observacoes: m.observacoes || '',
+    });
+    setPhotoFile(null);
+    setMemberDialog(true);
+  };
 
   const handleAddMember = async () => {
     if (!selectedTeam) return;
@@ -119,7 +133,7 @@ const OrganizerTeams = () => {
         return toast({ title: 'Erro na foto', description: e.message, variant: 'destructive' });
       } finally { setPhotoUploading(false); }
     }
-    const payload = {
+    const payload: any = {
       team_id: selectedTeam.id,
       nome: newMember.nome.trim(),
       codigo: newMember.rg.trim(),
@@ -138,11 +152,33 @@ const OrganizerTeams = () => {
       contato_emergencia: newMember.contato_emergencia || null,
       observacoes: newMember.observacoes || null,
     };
-    const { error } = await supabase.from('organizer_team_members').insert(payload);
+    const { error } = editingMemberId
+      ? await supabase.from('organizer_team_members').update(payload).eq('id', editingMemberId)
+      : await supabase.from('organizer_team_members').insert(payload);
     if (error) return toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     setMemberDialog(false);
     fetchMembers(selectedTeam.id);
-    toast({ title: 'Atleta adicionado!' });
+    toast({ title: editingMemberId ? 'Atleta atualizado!' : 'Atleta adicionado!' });
+  };
+
+  const openEditTeam = (t: Team) => {
+    setEditTeamDialog(t);
+    setEditTeamForm({ nome: t.nome, genero: t.genero || 'masculino', modalidade: t.modalidade, responsavel: t.responsavel || '', contato: t.contato || '' });
+  };
+  const saveEditTeam = async () => {
+    if (!editTeamDialog) return;
+    if (!editTeamForm.nome.trim()) return toast({ title: 'Nome obrigatório', variant: 'destructive' });
+    const { error } = await supabase.from('organizer_teams').update({
+      nome: editTeamForm.nome.trim(),
+      genero: editTeamForm.genero,
+      modalidade: editTeamForm.modalidade,
+      responsavel: editTeamForm.responsavel || null,
+      contato: editTeamForm.contato || null,
+    }).eq('id', editTeamDialog.id);
+    if (error) return toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    setEditTeamDialog(null);
+    fetchAll();
+    toast({ title: 'Equipe atualizada' });
   };
 
   const handleDeleteMember = async (id: string) => {
