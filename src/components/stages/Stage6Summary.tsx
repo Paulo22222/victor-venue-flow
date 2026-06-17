@@ -320,8 +320,10 @@ const Stage6Summary = () => {
       setB(ctx?.jogo?.participanteB ?? '');
     }, [ctx?.jogo?.id, ctx?.mod]);
     if (!ctx) return null;
+    const regraMod = getSportRule(ctx.mod);
     const equipesMod = competidores.equipes.filter(e => (e.modalidade || '').toUpperCase() === ctx.mod.toUpperCase());
-    const opcoes = equipesMod.map(e => e.nome);
+    const atletasMod = competidores.atletas.filter(a => (a.modalidade || '').toUpperCase() === ctx.mod.toUpperCase());
+    const opcoes = regraMod.tipo === 'individual' ? atletasMod.map(a => a.nome) : equipesMod.map(e => e.nome);
     const handleSave = async () => {
       if (!competitionId) return toast({ title: 'Salve o evento primeiro', variant: 'destructive' });
       if (!a || !b || a === b) return toast({ title: 'Selecione duas equipes diferentes', variant: 'destructive' });
