@@ -527,27 +527,24 @@ const Stage6Summary = () => {
                         <table className="w-full text-sm">
                           <thead className="bg-muted">
                             <tr>
-                              <th className="p-2 text-left">Posição</th>
+                              <th className="p-2 text-left">Pos</th>
                               <th className="p-2 text-left">Equipe</th>
-                              <th className="p-2 text-center">P</th>
-                              <th className="p-2 text-center">V</th>
-                              <th className="p-2 text-center">E</th>
-                              <th className="p-2 text-center">D</th>
-                              <th className="p-2 text-center">SG</th>
+                              {regra.colunas.map(c => (
+                                <th key={c.key} className="p-2 text-center">{c.label}</th>
+                              ))}
                             </tr>
                           </thead>
                           <tbody>
                             {ranking.length === 0 ? (
-                              <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">Sem placares lançados.</td></tr>
-                            ) : ranking.map(([nome, s], i) => (
-                              <tr key={nome} className={`border-t ${i < 3 ? 'font-semibold' : ''}`}>
-                                <td className="p-2">{i + 1}º LUGAR</td>
-                                <td className="p-2">{nome}</td>
-                                <td className="p-2 text-center font-bold text-primary">{s.p}</td>
-                                <td className="p-2 text-center">{s.v}</td>
-                                <td className="p-2 text-center">{s.e}</td>
-                                <td className="p-2 text-center">{s.d}</td>
-                                <td className="p-2 text-center">{s.sg > 0 ? `+${s.sg}` : s.sg}</td>
+                              <tr><td colSpan={2 + regra.colunas.length} className="p-4 text-center text-muted-foreground">Sem placares lançados.</td></tr>
+                            ) : ranking.map((row, i) => (
+                              <tr key={row.participante} className={`border-t ${i < 3 ? 'font-semibold' : ''}`}>
+                                <td className="p-2">{i + 1}º</td>
+                                <td className="p-2">{row.participante}</td>
+                                {regra.colunas.map(c => {
+                                  const v = (row as any)[c.key] ?? 0;
+                                  return <td key={c.key} className={`p-2 text-center ${c.key === 'P' ? 'font-bold text-primary' : ''}`}>{c.format ? c.format(v) : v}</td>;
+                                })}
                               </tr>
                             ))}
                           </tbody>
