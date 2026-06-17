@@ -132,7 +132,7 @@ const AdminVenues = () => {
             <div className="rounded-lg border overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted">
-                  <tr><th className="p-3 text-left">Local</th><th className="p-3 text-left">Modalidade</th><th className="p-3 text-left">Capacidade</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">Ações</th></tr>
+                  <tr><th className="p-3 text-left">Local</th><th className="p-3 text-left">Modalidade</th><th className="p-3 text-left">Capacidade</th><th className="p-3 text-left">Eventos</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">Ações</th></tr>
                 </thead>
                 <tbody>
                   {items.map(v => (
@@ -140,10 +140,11 @@ const AdminVenues = () => {
                       <td className="p-3"><div className="font-medium">{v.nome}</div><div className="text-xs text-muted-foreground">{v.endereco}</div></td>
                       <td className="p-3">{v.modalidade_nome ?? <span className="text-muted-foreground">—</span>}</td>
                       <td className="p-3">{v.capacidade ?? '-'}</td>
+                      <td className="p-3"><Badge variant={(v.eventsCount || 0) > 0 ? 'default' : 'outline'}>{v.eventsCount || 0}</Badge></td>
                       <td className="p-3"><Badge variant={v.disponivel ? 'default' : 'secondary'}>{v.disponivel ? 'Disponível' : 'Indisponível'}</Badge></td>
                       <td className="p-3 text-right">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(v)}><Pencil className="w-3.5 h-3.5" /></Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => remove(v.id)}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => remove(v)} disabled={(v.eventsCount || 0) > 0}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
                       </td>
                     </tr>
                   ))}
