@@ -80,44 +80,32 @@ const PublicEvent = () => {
 
   const generoDe = (nome: string, mod: string) => genderMap[keyEq(nome, mod)] || 'misto';
 
-  const rankingPorGenero = (genero: string) => {
-    const pts: Record<string, { p: number; v: number; e: number; d: number; gp: number; gc: number }> = {};
-    const ensure = (n: string) => { if (!pts[n]) pts[n] = { p: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }; };
+  // Agrupa partidas finalizadas por modalidade+gênero e calcula classificação respeitando a regra de cada esporte
+  const rankings = useMemo(() => {
+    const groups: Record<string, { modalidade: string; genero: string; regra: SportRule; rows: Record<string, RankingRow> }> = {};
     filtered.forEach(m => {
-      const mod = m.modalidade || activeMod;
-      if (activeMod !== 'all' && (m.modalidade || '').toUpperCase() !== activeMod.toUpperCase()) return;
-      // Ignora placeholders e partidas não finalizadas oficialmente
-      if (isPending(m.participante_a) || isPending(m.participante_b)) return;
       if (!m.finalizada) return;
+      if (m.placar_a == null || m.placar_b == null) return;
+      if (isPending(m.participante_a) || isPending(m.participante_b)) return;
+      const mod = m.modalidade || '';
       const gA = generoDe(m.participante_a, mod);
       const gB = generoDe(m.participante_b, mod);
-      if (gA !== genero || gB !== genero) return;
-      ensure(m.participante_a); ensure(m.participante_b);
-      if (m.placar_a != null && m.placar_b != null) {
-        pts[m.participante_a].gp += m.placar_a; pts[m.participante_a].gc += m.placar_b;
-        pts[m.participante_b].gp += m.placar_b; pts[m.participante_b].gc += m.placar_a;
-        const matchRule = getSportRule(mod);
-        const { a, b } = pontosRanking(m.placar_a, m.placar_b, matchRule);
-        pts[m.participante_a].p += a; pts[m.participante_b].p += b;
-        if (m.placar_a > m.placar_b) { pts[m.participante_a].v++; pts[m.participante_b].d++; }
-        else if (m.placar_b > m.placar_a) { pts[m.participante_b].v++; pts[m.participante_a].d++; }
-        else { pts[m.participante_a].e++; pts[m.participante_b].e++; }
-      }
+      if (gA !== gB) return;
+      const key = `${mod}__${gA}`;
+      if (!groups[key]) groups[key] = { modalidade: mod, genero: gA, regra: getSportRule(mod), rows: {} };
+      const g = groups[key];
+      if (!g.rows[m.participante_a]) g.rows[m.participante_a] = linhaVazia(m.participante_a);
+      if (!g.rows[m.participante_b]) g.rows[m.participante_b] = linhaVazia(m.participante_b);
+      aplicarPartida(g.rows[m.participante_a], g.regra, m.placar_a, m.placar_b, true, m.detalhes_placar);
+      aplicarPartida(g.rows[m.participante_b], g.regra, m.placar_a, m.placar_b, false, m.detalhes_placar);
     });
-    return Object.entries(pts).sort((a, b) => b[1].p - a[1].p || (b[1].gp - b[1].gc) - (a[1].gp - a[1].gc));
-  };
+    return Object.values(groups).map(g => ({
+      ...g,
+      ranking: Object.values(g.rows).sort((a, b) => b.P - a.P || b.SG - a.SG || (b.SetsV - b.SetsP) - (a.SetsV - a.SetsP)),
+    }));
+  }, [filtered, genderMap]);
 
-  const generosPresentes = useMemo(() => {
-    const set = new Set<string>();
-    filtered.forEach(m => {
-      const mod = m.modalidade || activeMod;
-      const gA = generoDe(m.participante_a, mod);
-      const gB = generoDe(m.participante_b, mod);
-      // Adiciona apenas se ambos os participantes forem do mesmo gênero (jogos válidos para ranking)
-      if (gA === gB) set.add(gA);
-    });
-    return Array.from(set);
-  }, [filtered, genderMap, activeMod]);
+
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   if (!comp) return <div className="min-h-screen flex flex-col items-center justify-center gap-4"><p>Evento não encontrado.</p><Link to="/"><Button>Voltar</Button></Link></div>;
