@@ -74,9 +74,12 @@ const AdminVenues = () => {
     setOpen(false); fetch();
   };
 
-  const remove = async (id: string) => {
+  const remove = async (v: Venue) => {
+    if ((v.eventsCount || 0) > 0) {
+      return toast({ title: 'Local em uso', description: `Existem ${v.eventsCount} evento(s) vinculados. Desvincule antes de excluir.`, variant: 'destructive' });
+    }
     if (!confirm('Excluir este local?')) return;
-    await supabase.from('venues').delete().eq('id', id);
+    await supabase.from('venues').delete().eq('id', v.id);
     fetch();
   };
 
