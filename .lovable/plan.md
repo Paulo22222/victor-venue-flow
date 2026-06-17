@@ -1,55 +1,73 @@
-## Resumo
+## Fase 2 — Plano de implementação
 
-Você escolheu priorizar **CRUD admin/organizador → ajustes cadastro → visual**, mas o bug de login bloqueia tudo (sem login admin, não dá pra testar nada). Então proponho rodar **bugs críticos primeiro (rápido)** e depois seguir sua ordem. Total estimado: 4 fases.
-
----
-
-## Fase 1 — Bugs críticos (faço já, é rápido)
-
-1. **Login redireciona pra home**: a causa típica é race condition no `AuthContext` — a query de role roda antes da sessão restaurar. Vou:
-   - Em `AuthContext`, primeiro registrar `onAuthStateChange`, depois chamar `getSession()` (ordem correta).
-   - Marcar `loading=true` até a role ser carregada.
-   - Em rotas protegidas, esperar `loading` virar `false` antes de redirecionar.
-2. **Visitante: "evento não encontrado"**: revisar `PublicEvent.tsx` — provavelmente está filtrando por `finalizado=true` ou a policy `anon` no `competitions` está exigindo auth. Vou ajustar RLS para permitir `SELECT` anon em eventos publicados e remover o filtro que esconde eventos.
-3. **Tirar QR Code dos crachás**: remover geração e renderização em `badgeGenerator.ts` e telas de crachá.
-
-## Fase 2 — Ajustes no cadastro de evento
-
-4. **Remover etapa Logística inteira** (você confirmou): tirar `Stage5Logistics` do wizard, remover do `CompetitionState.logistica`, do `competitionService` (campos `logistica_*`, `tempo_*`, `equipe_arbitragem` etc.) e migrar coluna para serem opcionais/ignoradas. O wizard fica: Evento → Categorias → Equipes → Disputa → Resumo (5 etapas).
-5. **Modalidade na etapa 1 = lista clicável**: substituir input texto por multi-select usando `sport_modalities` cadastradas no admin. Salva como array.
-6. **Unidade de pontuação clicável** em `AdminModalities`: radio/select com opções (pontos, sets, tempo, distância) — o sistema de scoring se adapta com base nisso (`sportRules.ts`).
-7. **Validação telefone/RG** no cadastro de atleta: zod com máscaras BR (`(99) 99999-9999`, RG numérico/alfanumérico).
-8. **Planilha modelo (XLSX) mais bonita**: cabeçalhos coloridos, larguras de coluna, dropdowns de validação para gênero/modalidade, instruções na primeira linha.
-
-## Fase 3 — Novas telas (sua prioridade #1)
-
-9. **Admin → Atletas & Equipes** (nova página, já existe rota `/admin/athletes`): tabela com todos atletas do acervo (`organizer_team_members`), com:
-   - Filtros: curso, campus, busca por nome.
-   - Edição inline ou modal (nome, foto, telefone, RG, curso, campus, data nasc).
-   - Aba "Equipes" para editar `organizer_teams` (nome, gênero, integrantes).
-10. **Organizador → editar atletas**: liberar `OrganizerTeams` para editar atletas do próprio acervo (RLS já permite via `get_team_owner`).
-
-## Fase 4 — Visual/UX
-
-11. **Chaveamento com linhas conectando rodadas** (estilo da imagem): SVG overlay no `Bracket` em `PublicEvent.tsx` e `Stage6Summary.tsx`. Linhas laranjas em L conectando vencedor → próxima partida.
-12. **Classificação por modalidade + gênero**: agrupar rankings em abas/cards (`Masculino / Feminino / Misto` dentro de cada modalidade) no público e no admin.
-13. **Visitante clica na equipe → vê atletas** (só nome + foto): modal/drawer no `PublicEvent.tsx` carregando `team_members` ou `organizer_team_members`.
-14. **Chaveamento manual**: novo modo em `Stage6Summary` onde admin arrasta/seleciona quem joga contra quem antes de gerar a 1ª rodada.
-15. **Aba Locais — utilidade real**: hoje é só CRUD solto. Proposta: associar locais a eventos (dropdown de `venues` na etapa 1 ao invés de texto livre) + mostrar agenda do local (quais eventos/jogos acontecem ali). Se você preferir, removo a aba.
+Antes de começar quero confirmar o escopo, porque são 6 features com **3 migrações de banco**, mudanças na **edge function** e várias telas. Vou implementar exatamente o que você pediu.
 
 ---
 
-## Explicação das funções admin (entrego junto, em texto)
+### 1. Aba Locais ↔ Cadastro de Evento
 
-Vou te mandar no chat um guia rápido do que cada item do menu admin faz: Painel, Eventos, Equipes & Atletas, Acervo organizadores, Modalidades, Locais, Crachás, Usuários — com 1 parágrafo cada.
+**Migração**: adicionar `venue_id uuid REFERENCES venues(id)` em `competitions`.
+
+**Stage1Event.tsx**: trocar o campo "Local" texto livre por um **Select de locais cadastrados** (carrega de `venues`) com opção "Outro" que volta a aceitar texto livre. Mostra endereço/capacidade abaixo. Persiste `venue_id` + `local` (nome).
+
+**RescheduleDialog (Stage6)**: já usa venues filtrados por modalidade — manter, mas pré-selecionar o venue do evento.
+
+**AdminVenues**: na tabela mostrar coluna "Eventos vinculados" (count de competitions com aquele venue_id), e impedir delete se houver vínculo.
 
 ---
 
-## Ordem de execução proposta
+### 2. Chaveamento Manual (opção extra)
 
-Faço **Fase 1 agora** (1 resposta), aí você testa o login e visitante. Depois confirmamos seguir pra Fase 2, 3 e 4 em respostas separadas — assim cada etapa é validável e não viramos um "big bang" de 30 arquivos.
+**Migração**: adicionar `manual boolean DEFAULT false` em `competition_matches`.
 
-**Pergunta de decisão antes de começar:**
-- Posso rodar a Fase 1 já? (bugs críticos + tirar QR)
-- Na **etapa 15 (Locais)**: prefere (a) integrar locais ao cadastro de evento ou (b) remover a aba?
-- No **chaveamento manual** (item 14): substituir a geração automática ou adicionar como opção extra?
+**Stage6Summary**: novo botão **"Adicionar confronto manual"** ao lado de cada modalidade. Abre dialog para escolher rodada + Equipe A + Equipe B (dropdowns com equipes da modalidade). Botão **"Editar confronto"** em cada card de jogo permite trocar participantes. Botão **excluir** o jogo.
+
+A função `propagarVencedor` passa a **ignorar matches com `manual=true`** — alterações manuais não são sobrescritas.
+
+---
+
+### 3. Histórico de Alterações de Placares
+
+**Migração**: nova tabela `competition_match_history` (match_id, competition_id, changed_by uuid, changed_at, placar_a_old/new, placar_b_old/new, finalizada_old/new). RLS: admin/organizer veem do próprio evento.
+
+**competitionService.updateMatchScore**: lê valores antigos antes do update e insere histórico (apenas quando match já estava finalizada).
+
+**Stage6Summary**: botão "🕒" em cada jogo finalizado → drawer com lista cronológica: "Fulano alterou 2x1 → 3x1 em 17/06 14:32".
+
+---
+
+### 4. Visibilidade de Eventos por Admin
+
+**Migração**: adicionar `owner_id uuid` em `competitions` (preenche `auth.uid()` no insert). Atualizar RLS SELECT para admin: `owner_id = auth.uid() OR owner_id IS NULL`. Anon/visitante continua vendo tudo (página pública).
+
+**competitionService.listCompetitions**: filtrar por `owner_id = current user`.
+**saveCompetition**: setar `owner_id` no insert.
+
+---
+
+### 5. Alterar Senha de Usuário (admin)
+
+**manage-roles edge function**: nova action `?action=set-password` que recebe `{user_id, new_password}` e chama `supabaseAdmin.auth.admin.updateUserById(user_id, { password })`. Valida ≥6 chars.
+
+**AdminUsers.tsx**: botão 🔑 na linha do usuário → dialog "Nova senha" + "Confirmar" → toast.
+
+---
+
+### 6. Edição de Atletas e Equipes (admin + organizador)
+
+**OrganizerTeams.tsx** (usado por ambos os perfis):
+
+- Botão **✏️ Editar equipe** ao lado do nome → dialog com nome, gênero, modalidade, responsável, contato (adicionar colunas se faltarem: `responsavel`, `contato` em `organizer_teams` via migração).
+- Botão **✏️ Editar atleta** em cada membro → reabre o dialog completo (mesma estrutura de adicionar) preenchido com os dados, salvando com UPDATE.
+- Para o **admin** acessando `/admin/athletes`: detectar role e, em vez de filtrar `owner_id = user.id`, listar **todas** as equipes (RLS já permite via `has_role admin`). Mostrar coluna "Dono" para distinguir.
+
+---
+
+### Resumo dos arquivos tocados
+
+- **3 migrações SQL** (venue_id, manual+history, owner_id + organizer_teams extras)
+- **1 edge function** (manage-roles: action set-password)
+- **Edits**: Stage1Event, Stage6Summary, AdminVenues, AdminEvents, AdminUsers, OrganizerTeams, competitionService, types/competition
+- ~7 arquivos editados + 3 migrações + 1 função
+
+Posso executar tudo? Ou prefere que eu faça **item por item** (1→6) pra você revisar cada migração separadamente antes da próxima?
