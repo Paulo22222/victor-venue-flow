@@ -149,8 +149,9 @@ const AdminModalities = () => {
                 <thead className="bg-muted">
                   <tr>
                     <th className="p-3 text-left">Nome</th>
+                    <th className="p-3 text-left">Tipo</th>
+                    <th className="p-3 text-left">Regra</th>
                     <th className="p-3 text-left">Unidade</th>
-                    <th className="p-3 text-left">Máx Atl/Eq</th>
                     <th className="p-3 text-left">Status</th>
                     <th className="p-3 text-right">Ações</th>
                   </tr>
