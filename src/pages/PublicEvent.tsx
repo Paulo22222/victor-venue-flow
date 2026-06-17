@@ -152,14 +152,15 @@ const PublicEvent = () => {
             ))}
           </TabsList>
           <TabsContent value={activeMod} className="mt-6 space-y-6">
-            {generosPresentes.length === 0 ? (
-              <RankingTable titulo="Classificação" ranking={[]} />
+            {rankings.length === 0 ? (
+              <RankingTable titulo="Classificação" regra={getSportRule()} ranking={[]} />
             ) : (
-              generosPresentes.map(g => (
+              rankings.map(g => (
                 <RankingTable
-                  key={g}
-                  titulo={`Classificação — ${labelGenero(g)}`}
-                  ranking={rankingPorGenero(g)}
+                  key={`${g.modalidade}__${g.genero}`}
+                  titulo={`Classificação — ${g.modalidade || 'Geral'} (${labelGenero(g.genero)})`}
+                  regra={g.regra}
+                  ranking={g.ranking}
                 />
               ))
             )}
