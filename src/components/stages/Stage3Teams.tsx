@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Users, Check, AlertCircle, Loader2, UserCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users, Check, AlertCircle, Loader2, UserCheck, User } from 'lucide-react';
 import { Equipe, Atleta } from '@/types/competition';
+import { getSportRule } from '@/utils/sportRules';
 
 interface OrgTeam {
   id: string;
@@ -25,7 +26,6 @@ const Stage3Teams = () => {
   const [pool, setPool] = useState<OrgTeam[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Garante tipo "coletivo" automaticamente nesta etapa (event-driven)
   useEffect(() => {
     if (state.competidores.tipo !== 'coletivo') {
       updateCompetidores({ tipo: 'coletivo' });
@@ -60,11 +60,11 @@ const Stage3Teams = () => {
     fetchPool();
   }, []);
 
-  const isSelected = (orgTeamId: string, modalidade: string) =>
+  const isTeamSelected = (orgTeamId: string, modalidade: string) =>
     state.competidores.equipes.some(e => e.organizerTeamId === orgTeamId && e.modalidade === modalidade);
 
   const toggleTeam = (t: OrgTeam, modalidade: string) => {
-    if (isSelected(t.id, modalidade)) {
+    if (isTeamSelected(t.id, modalidade)) {
       updateCompetidores({
         equipes: state.competidores.equipes.filter(
           e => !(e.organizerTeamId === t.id && e.modalidade === modalidade)
@@ -88,11 +88,37 @@ const Stage3Teams = () => {
     }
   };
 
-  const teamsForMod = (mod: string) =>
-    pool.filter(t => t.modalidade.toUpperCase() === mod.toUpperCase());
+  // ===== Modalidades individuais =====
+  const isAthleteSelected = (sourceMemberId: string, modalidade: string) =>
+    state.competidores.atletas.some(a => (a as any).sourceMemberId === sourceMemberId && a.modalidade === modalidade);
+
+  const toggleAthlete = (m: { id: string; nome: string; genero: string | null; codigo: string | null }, modalidade: string) => {
+    if (isAthleteSelected(m.id, modalidade)) {
+      updateCompetidores({
+        atletas: state.competidores.atletas.filter(a => !((a as any).sourceMemberId === m.id && a.modalidade === modalidade)),
+      });
+    } else {
+      const novo: Atleta = {
+        id: crypto.randomUUID(),
+        nome: m.nome, dataNascimento: '', documento: '',
+        genero: (m.genero as Atleta['genero']) || 'masculino',
+        codigo: m.codigo || undefined,
+        modalidade,
+      };
+      (novo as any).sourceMemberId = m.id;
+      (novo as any).inscricaoIndividual = true;
+      updateCompetidores({ atletas: [...state.competidores.atletas, novo] });
+    }
+  };
+
+  const teamsForMod = (mod: string) => pool.filter(t => t.modalidade.toUpperCase() === mod.toUpperCase());
+  // Atletas elegíveis para modalidade individual = atletas das equipes do organizador cuja modalidade bate
+  const athletesForMod = (mod: string) =>
+    teamsForMod(mod).flatMap(t => t.members.map(m => ({ ...m, teamNome: t.nome })));
 
   const selecionadasNaMod = (mod: string) =>
-    state.competidores.equipes.filter(e => e.modalidade === mod);
+    state.competidores.equipes.filter(e => e.modalidade === mod).length +
+    state.competidores.atletas.filter(a => a.modalidade === mod).length;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in-up py-6">
@@ -100,9 +126,9 @@ const Stage3Teams = () => {
         <div className="inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider mb-2">
           <Users className="w-4 h-4" /> Etapa 3 de 6
         </div>
-        <h1 className="font-heading text-2xl md:text-3xl font-bold">Selecione as equipes participantes</h1>
+        <h1 className="font-heading text-2xl md:text-3xl font-bold">Selecione os participantes</h1>
         <p className="text-muted-foreground mt-1">
-          Escolha equipes do acervo dos organizadores para cada modalidade do evento.
+          Modalidades coletivas: selecione equipes. Modalidades individuais: selecione atletas.
         </p>
       </div>
 
@@ -120,12 +146,50 @@ const Stage3Teams = () => {
             {modalidades.map(m => (
               <TabsTrigger key={m.nome} value={m.nome} className="gap-2">
                 {m.nome}
-                <Badge variant="secondary" className="h-5">{selecionadasNaMod(m.nome).length}</Badge>
+                <Badge variant="secondary" className="h-5">{selecionadasNaMod(m.nome)}</Badge>
               </TabsTrigger>
             ))}
           </TabsList>
 
           {modalidades.map(m => {
+            const regra = getSportRule(m.nome);
+            if (regra.tipo === 'individual') {
+              const atletas = athletesForMod(m.nome);
+              return (
+                <TabsContent key={m.nome} value={m.nome} className="mt-4 space-y-3">
+                  <div className="rounded-lg bg-muted/40 border px-4 py-2 text-xs text-muted-foreground inline-flex items-center gap-2">
+                    <User className="w-3.5 h-3.5" /> Modalidade individual — selecione atletas para inscrever
+                  </div>
+                  {atletas.length === 0 ? (
+                    <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">
+                      Nenhum atleta de {m.nome} disponível. Peça aos organizadores para cadastrar equipes/atletas dessa modalidade.
+                    </CardContent></Card>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {atletas.map(a => {
+                        const sel = isAthleteSelected(a.id, m.nome);
+                        return (
+                          <button
+                            key={a.id}
+                            onClick={() => toggleAthlete(a, m.nome)}
+                            className={`text-left rounded-lg border-2 px-3 py-2 transition-all
+                              ${sel ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-primary/30'}`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <div className="font-semibold text-sm">{a.nome}</div>
+                                <div className="text-[11px] text-muted-foreground">{a.teamNome} · {a.genero || 'misto'}</div>
+                              </div>
+                              {sel && <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center"><Check className="w-3 h-3" /></div>}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </TabsContent>
+              );
+            }
             const opts = teamsForMod(m.nome);
             return (
               <TabsContent key={m.nome} value={m.nome} className="mt-4 space-y-3">
@@ -136,7 +200,7 @@ const Stage3Teams = () => {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {opts.map(t => {
-                      const sel = isSelected(t.id, m.nome);
+                      const sel = isTeamSelected(t.id, m.nome);
                       const semAtletas = t.members.length === 0;
                       return (
                         <button
