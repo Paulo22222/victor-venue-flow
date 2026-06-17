@@ -796,4 +796,68 @@ const ScoreRow = ({
   </div>
 );
 
+const SetsScoreInput = ({
+  nameA, nameB, sets, onChange, disabled, loading, unit, winA, winB,
+}: {
+  nameA: string; nameB: string;
+  sets: number[][];
+  onChange: (sets: number[][]) => void;
+  disabled: boolean; loading: boolean;
+  unit: 'set' | 'game';
+  winA: boolean; winB: boolean;
+}) => {
+  const safe = Array.isArray(sets) ? sets : [];
+  const addSet = () => onChange([...safe, [0, 0]]);
+  const removeSet = (i: number) => onChange(safe.filter((_, idx) => idx !== i));
+  const updateSet = (i: number, side: 0 | 1, val: number) => {
+    const next = safe.map((s, idx) => idx === i ? (side === 0 ? [val, s[1]] : [s[0], val]) : s);
+    onChange(next);
+  };
+  const setsA = safe.filter(s => s[0] > s[1]).length;
+  const setsB = safe.filter(s => s[1] > s[0]).length;
+  const label = unit === 'set' ? 'Set' : 'Game';
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-sm font-semibold">
+        <span className={`truncate flex-1 ${winA ? 'text-primary' : ''}`}>{nameA}</span>
+        <span className="tabular-nums text-xl px-3">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin inline" /> : `${setsA} × ${setsB}`}
+        </span>
+        <span className={`truncate flex-1 text-right ${winB ? 'text-primary' : ''}`}>{nameB}</span>
+      </div>
+      <div className="space-y-1">
+        {safe.length === 0 && (
+          <div className="text-[11px] text-muted-foreground text-center py-1">Nenhum {label.toLowerCase()} registrado.</div>
+        )}
+        {safe.map((s, i) => (
+          <div key={i} className="flex items-center gap-2 text-xs">
+            <span className="w-12 text-muted-foreground">{label} {i + 1}</span>
+            <Input
+              type="number" min={0} value={s[0]} disabled={disabled}
+              onChange={(e) => updateSet(i, 0, Math.max(0, Number(e.target.value) || 0))}
+              className="h-7 w-16 text-center"
+            />
+            <span className="text-muted-foreground">x</span>
+            <Input
+              type="number" min={0} value={s[1]} disabled={disabled}
+              onChange={(e) => updateSet(i, 1, Math.max(0, Number(e.target.value) || 0))}
+              className="h-7 w-16 text-center"
+            />
+            {!disabled && (
+              <Button size="icon" variant="ghost" className="h-6 w-6 ml-auto" onClick={() => removeSet(i)}>
+                <Trash2 className="w-3 h-3 text-destructive" />
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+      {!disabled && (
+        <Button size="sm" variant="outline" className="w-full h-7 gap-1 text-xs" onClick={addSet}>
+          <PlusCircle className="w-3 h-3" /> Adicionar {label.toLowerCase()}
+        </Button>
+      )}
+    </div>
+  );
+};
+
 export default Stage6Summary;
