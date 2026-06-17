@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ChevronLeft, Save, CheckCircle2, FileText, Trophy, Loader2, Minus, Plus, Radio, Flag, CalendarClock, MapPin, Lock, History, PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import { generateCompetitionPDF } from '@/utils/pdfGenerator';
-import { getSportRule, pontosRanking } from '@/utils/sportRules';
+import { getSportRule, aplicarPartida, linhaVazia, type SportRule, type RankingRow } from '@/utils/sportRules';
 import { updateMatchScore, updateMatchSchedule, finalizeMatch, createManualMatch, updateMatchParticipants, deleteMatch, getMatchHistory, MatchHistoryRow } from '@/services/competitionService';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
