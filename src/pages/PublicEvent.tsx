@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Loader2, Trophy, Radio, Calendar, MapPin } from 'lucide-react';
-import { getSportRule, aplicarPartida, linhaVazia, type RankingRow, type SportRule } from '@/utils/sportRules';
+import { getSportRule, aplicarPartida, linhaVazia, sortRanking, type RankingRow, type SportRule } from '@/utils/sportRules';
 import logo from '@/assets/logo.png';
 
 interface Competition {
@@ -70,7 +70,8 @@ const PublicEvent = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'competition_matches', filter: `competition_id=eq.${id}` }, () => fetchAll())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'competitions', filter: `id=eq.${id}` }, () => fetchAll())
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    const interval = window.setInterval(fetchAll, 15000);
+    return () => { window.clearInterval(interval); supabase.removeChannel(ch); };
   }, [id]);
 
   const filtered = useMemo(() => {
@@ -84,7 +85,6 @@ const PublicEvent = () => {
   const rankings = useMemo(() => {
     const groups: Record<string, { modalidade: string; genero: string; regra: SportRule; rows: Record<string, RankingRow> }> = {};
     filtered.forEach(m => {
-      if (!m.finalizada) return;
       if (m.placar_a == null || m.placar_b == null) return;
       if (isPending(m.participante_a) || isPending(m.participante_b)) return;
       const mod = m.modalidade || '';
@@ -101,7 +101,7 @@ const PublicEvent = () => {
     });
     return Object.values(groups).map(g => ({
       ...g,
-      ranking: Object.values(g.rows).sort((a, b) => b.P - a.P || b.SG - a.SG || (b.SetsV - b.SetsP) - (a.SetsV - a.SetsP)),
+      ranking: sortRanking(g.regra, Object.values(g.rows)),
     }));
   }, [filtered, genderMap]);
 

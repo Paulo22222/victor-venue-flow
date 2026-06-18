@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-action",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     }
 
     const url = new URL(req.url);
-    const action = url.searchParams.get("action");
+    const action = req.headers.get("x-action") || url.searchParams.get("action");
     const method = req.method;
 
     // GET — list users

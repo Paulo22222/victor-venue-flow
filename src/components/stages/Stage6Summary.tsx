@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCompetition } from '@/context/CompetitionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ChevronLeft, Save, CheckCircle2, FileText, Trophy, Loader2, Minus, Plus, Radio, Flag, CalendarClock, MapPin, Lock, History, PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import { generateCompetitionPDF } from '@/utils/pdfGenerator';
-import { getSportRule, aplicarPartida, linhaVazia, type SportRule, type RankingRow } from '@/utils/sportRules';
+import { getSportRule, aplicarPartida, linhaVazia, sortRanking, type SportRule, type RankingRow } from '@/utils/sportRules';
 import { updateMatchScore, updateMatchSchedule, finalizeMatch, createManualMatch, updateMatchParticipants, deleteMatch, getMatchHistory, MatchHistoryRow } from '@/services/competitionService';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -21,7 +21,7 @@ const isPending = (name?: string) => !name || name.startsWith('Vencedor(');
 const displayName = (name?: string) => (isPending(name) ? 'Aguardando adversário' : name!);
 
 const Stage6Summary = () => {
-  const { state, competitionId, save, saving, finalize, updateResultado, updateJogo, setStep } = useCompetition();
+  const { state, competitionId, save, saving, finalize, updateResultado, updateJogo, addJogo, removeJogo, setStep } = useCompetition();
   const { evento, competidores, jogos, resultados, logistica, disputa } = state;
   const modalidades = competidores.modalidades;
   const [activeTab, setActiveTab] = useState(modalidades[0]?.nome || 'resumo');
@@ -31,10 +31,12 @@ const Stage6Summary = () => {
   const [venues, setVenues] = useState<{ id: string; nome: string; modalidade_nome: string | null }[]>([]);
   const [manualDialog, setManualDialog] = useState<{ mod: string; jogo?: Jogo } | null>(null);
   const [historyDialog, setHistoryDialog] = useState<Jogo | null>(null);
+  const scoreTimers = useRef<Record<string, number>>({});
 
   useEffect(() => {
     supabase.from('venues').select('id, nome, modalidade_nome').eq('disponivel', true).order('nome')
       .then(({ data }) => setVenues((data ?? []) as any));
+    return () => Object.values(scoreTimers.current).forEach(window.clearTimeout);
   }, []);
 
   // Propaga vencedor para o próximo jogo da chave (substitui "Vencedor(A x B)")
@@ -75,14 +77,18 @@ const Stage6Summary = () => {
     }
     updateResultado(jogoId, a, b);
     if (detalhes !== undefined) updateJogo(jogoId, { detalhesPlacar: detalhes } as any);
-    try {
-      setSavingScore(jogoId);
-      await updateMatchScore(jogoId, a, b, detalhes);
-    } catch (err: any) {
-      toast({ title: 'Erro ao salvar placar', description: err.message, variant: 'destructive' });
-    } finally {
-      setSavingScore(null);
-    }
+    if (scoreTimers.current[jogoId]) window.clearTimeout(scoreTimers.current[jogoId]);
+    setSavingScore(jogoId);
+    scoreTimers.current[jogoId] = window.setTimeout(async () => {
+      try {
+        await updateMatchScore(jogoId, a, b, detalhes);
+      } catch (err: any) {
+        toast({ title: 'Erro ao salvar placar', description: err.message, variant: 'destructive' });
+      } finally {
+        delete scoreTimers.current[jogoId];
+        setSavingScore(current => current === jogoId ? null : current);
+      }
+    }, 350);
   };
 
   // Confirma resultado de uma partida individual e propaga o vencedor para a próxima fase
@@ -96,18 +102,30 @@ const Stage6Summary = () => {
       toast({ title: 'Registre o placar antes de finalizar', variant: 'destructive' });
       return;
     }
-    if (r.placarA === r.placarB) {
+    const regra = getSportRule(jogo.modalidade);
+    const sistema = disputa.porModalidade?.[jogo.modalidade || ''] || disputa.sistema;
+    const empateSemVencedor = r.placarA === r.placarB;
+    if (empateSemVencedor && (!regra.permiteEmpate || sistema === 'eliminatorio')) {
       toast({ title: 'Empate não define vencedor', description: 'Ajuste o placar para definir o vencedor antes de finalizar.', variant: 'destructive' });
       return;
     }
-    if (!confirm(`Confirmar resultado e finalizar a partida ${jogo.participanteA} ${r.placarA} x ${r.placarB} ${jogo.participanteB}? O vencedor avançará no chaveamento.`)) return;
+    if (!confirm(`Confirmar resultado e finalizar a partida ${jogo.participanteA} ${r.placarA} x ${r.placarB} ${jogo.participanteB}?${empateSemVencedor ? '' : ' O vencedor avançará no chaveamento quando houver próxima fase.'}`)) return;
     try {
       setSavingScore(jogo.id);
+      if (scoreTimers.current[jogo.id]) {
+        window.clearTimeout(scoreTimers.current[jogo.id]);
+        delete scoreTimers.current[jogo.id];
+      }
+      await updateMatchScore(jogo.id, r.placarA, r.placarB, (jogo as any).detalhesPlacar ?? undefined);
       await finalizeMatch(jogo.id, true);
       updateJogo(jogo.id, { finalizada: true });
-      const vencedor = r.placarA > r.placarB ? jogo.participanteA : jogo.participanteB;
-      await propagarVencedor(jogo, vencedor);
-      toast({ title: 'Partida finalizada', description: `${vencedor} avançou.` });
+      if (!empateSemVencedor) {
+        const vencedor = r.placarA > r.placarB ? jogo.participanteA : jogo.participanteB;
+        await propagarVencedor(jogo, vencedor);
+        toast({ title: 'Partida finalizada', description: `${vencedor} avançou quando aplicável.` });
+      } else {
+        toast({ title: 'Partida finalizada', description: 'Empate registrado na classificação.' });
+      }
     } catch (err: any) {
       toast({ title: 'Erro ao finalizar partida', description: err.message, variant: 'destructive' });
     } finally {
@@ -146,7 +164,6 @@ const Stage6Summary = () => {
         .forEach(e => { rows[e.nome] = linhaVazia(e.nome); });
     }
     jogosPorMod(mod).forEach(j => {
-      if (!j.finalizada) return;
       const r = resultados[j.id];
       if (!r) return;
       if (isPending(j.participanteA) || isPending(j.participanteB)) return;
@@ -155,7 +172,7 @@ const Stage6Summary = () => {
       aplicarPartida(rows[j.participanteA], regra, r.placarA, r.placarB, true, detalhes);
       aplicarPartida(rows[j.participanteB], regra, r.placarA, r.placarB, false, detalhes);
     });
-    return Object.values(rows).sort((a, b) => b.P - a.P || b.SG - a.SG || (b.SetsV - b.SetsP) - (a.SetsV - a.SetsP));
+    return sortRanking(regra, Object.values(rows));
   };
 
   const generosNaMod = (mod: string): string[] => {
@@ -190,7 +207,7 @@ const Stage6Summary = () => {
         }
       }
       // Aplica resultados em paralelo (estado + DB) e finaliza cada partida
-      await Promise.all(matches.map(async (j) => {
+      for (const j of matches) {
         const w = winners[j.id]!;
         const a = w === 'A' ? placarVencedor : 0;
         const b = w === 'B' ? placarVencedor : 0;
@@ -204,7 +221,7 @@ const Stage6Summary = () => {
         updateJogo(j.id, { finalizada: true });
         const vencedor = w === 'A' ? j.participanteA : j.participanteB;
         await propagarVencedor(j, vencedor);
-      }));
+      }
       toast({ title: `Rodada ${ctx.rodada} finalizada!`, description: `${matches.length} jogo(s) decididos · vencedores avançaram.` });
       setFinalizeRound(null);
     };
@@ -335,7 +352,7 @@ const Stage6Summary = () => {
     const opcoes = regraMod.tipo === 'individual' ? atletasMod.map(a => a.nome) : equipesMod.map(e => e.nome);
     const handleSave = async () => {
       if (!competitionId) return toast({ title: 'Salve o evento primeiro', variant: 'destructive' });
-      if (!a || !b || a === b) return toast({ title: 'Selecione duas equipes diferentes', variant: 'destructive' });
+      if (!a || !b || a === b) return toast({ title: `Selecione dois ${regraMod.tipo === 'individual' ? 'atletas' : 'participantes'} diferentes`, variant: 'destructive' });
       setSavingM(true);
       try {
         if (ctx.jogo && isUuid(ctx.jogo.id)) {
@@ -343,10 +360,8 @@ const Stage6Summary = () => {
           updateJogo(ctx.jogo.id, { participanteA: a, participanteB: b, manual: true } as any);
         } else {
           const created = await createManualMatch(competitionId, { rodada, participanteA: a, participanteB: b, modalidade: ctx.mod });
-          // adicionar localmente
           const novo: Jogo = { id: created.id, rodada, participanteA: a, participanteB: b, modalidade: ctx.mod, esporte: ctx.mod, manual: true } as any;
-          (state.jogos as any).push(novo);
-          updateJogo(created.id, { manual: true } as any);
+          addJogo(novo);
         }
         toast({ title: ctx.jogo ? 'Confronto atualizado' : 'Confronto manual criado' });
         setManualDialog(null);
@@ -363,13 +378,13 @@ const Stage6Summary = () => {
               <div><Label className="text-xs">Rodada</Label><Input type="number" min={1} value={rodada} onChange={ev => setRodada(Math.max(1, Number(ev.target.value)))} /></div>
             )}
             <div>
-              <Label className="text-xs">Equipe A</Label>
+              <Label className="text-xs">{regraMod.tipo === 'individual' ? 'Atleta' : 'Equipe'} A</Label>
               <Select value={a} onValueChange={setA}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>{opcoes.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-xs">Equipe B</Label>
+              <Label className="text-xs">{regraMod.tipo === 'individual' ? 'Atleta' : 'Equipe'} B</Label>
               <Select value={b} onValueChange={setB}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>{opcoes.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
               </Select>
@@ -425,10 +440,7 @@ const Stage6Summary = () => {
     if (!confirm(`Excluir confronto ${j.participanteA} x ${j.participanteB}?`)) return;
     try {
       if (isUuid(j.id)) await deleteMatch(j.id);
-      // Remove do estado local
-      const idx = state.jogos.findIndex(x => x.id === j.id);
-      if (idx >= 0) (state.jogos as any).splice(idx, 1);
-      updateJogo(j.id, { participanteA: '', participanteB: '' } as any); // força re-render
+      removeJogo(j.id);
       toast({ title: 'Confronto removido' });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
@@ -525,7 +537,7 @@ const Stage6Summary = () => {
             <TabsContent key={m.nome} value={m.nome} className="mt-4 space-y-6">
               {/* Classificação separada por gênero */}
               {generos.length === 0 ? (
-                <Card><CardContent className="p-5 text-sm text-muted-foreground">Nenhuma equipe nesta modalidade.</CardContent></Card>
+          <Card><CardContent className="p-5 text-sm text-muted-foreground">Nenhum participante nesta modalidade.</CardContent></Card>
               ) : generos.map(g => {
                 const ranking = rankingPorModEGenero(m.nome, g);
                 return (
@@ -539,7 +551,7 @@ const Stage6Summary = () => {
                           <thead className="bg-muted">
                             <tr>
                               <th className="p-2 text-left">Pos</th>
-                              <th className="p-2 text-left">Equipe</th>
+                              <th className="p-2 text-left">Participante</th>
                               {regra.colunas.map(c => (
                                 <th key={c.key} className="p-2 text-center">{c.label}</th>
                               ))}
@@ -632,7 +644,7 @@ const Stage6Summary = () => {
                                 const finalizada = !!j.finalizada;
                                 const winA = finalizada && cur.placarA > cur.placarB;
                                 const winB = finalizada && cur.placarB > cur.placarA;
-                                const podeFinalizar = !state.finalizado && !aguardando && !finalizada && placarRegistrado && cur.placarA !== cur.placarB;
+                                const podeFinalizar = !state.finalizado && !aguardando && !finalizada && placarRegistrado && (regra.permiteEmpate || cur.placarA !== cur.placarB);
                                 let statusLabel = 'Aguardando';
                                 let statusColor = 'bg-muted text-muted-foreground';
                                 if (finalizada) { statusLabel = 'Finalizada'; statusColor = 'bg-success text-success-foreground'; }

@@ -42,13 +42,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
       if (newSession?.user) {
+        setLoading(true);
         // defer to avoid deadlock with the auth callback
         setTimeout(async () => {
           const r = await fetchRole(newSession.user.id);
-          if (active) setRole(r);
+          if (active) {
+            setRole(r);
+            setLoading(false);
+          }
         }, 0);
       } else {
         setRole(null);
+        setLoading(false);
       }
     });
 
@@ -74,7 +79,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const userId = data.user?.id;
     if (!userId) throw new Error('Falha ao obter usuário');
     const r = await fetchRole(userId);
+    setSession(data.session ?? null);
+    setUser(data.user ?? null);
     setRole(r);
+    setLoading(false);
     return r;
   };
 

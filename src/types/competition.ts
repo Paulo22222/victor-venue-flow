@@ -19,6 +19,8 @@ export interface Atleta {
   genero: 'masculino' | 'feminino' | 'misto' | 'outro';
   codigo?: string;
   modalidade?: string;
+  sourceMemberId?: string;
+  inscricaoIndividual?: boolean;
 }
 
 export interface Equipe {

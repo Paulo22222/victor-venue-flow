@@ -27,11 +27,28 @@ const AdminUsers = () => {
   const [savingPwd, setSavingPwd] = useState(false);
   const [newUser, setNewUser] = useState({ username: '', password: '', display_name: '', role: 'organizer', telefone: '', instituicao: '', campus: '' });
 
+  const invokeManageRoles = async (options: any = {}) => {
+    const { data, error } = await supabase.functions.invoke('manage-roles', options);
+    if (error) {
+      const context = (error as any).context;
+      if (context?.json) {
+        try {
+          const body = await context.json();
+          throw new Error(body?.error || error.message);
+        } catch (e: any) {
+          throw new Error(e?.message || error.message);
+        }
+      }
+      throw error;
+    }
+    if (data?.error) throw new Error(data.error);
+    return data;
+  };
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('manage-roles', { method: 'GET' });
-      if (error) throw error;
+      const data = await invokeManageRoles({ method: 'GET' });
       setUsers(data || []);
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
@@ -43,8 +60,7 @@ const AdminUsers = () => {
   const changeRole = async (userId: string, newRole: string) => {
     setUpdating(userId);
     try {
-      const { error } = await supabase.functions.invoke('manage-roles', { body: { user_id: userId, role: newRole } });
-      if (error) throw error;
+      await invokeManageRoles({ body: { user_id: userId, role: newRole } });
       toast({ title: 'Papel atualizado!' });
       fetchUsers();
     } catch (err: any) { toast({ title: 'Erro', description: err.message, variant: 'destructive' }); }
@@ -57,11 +73,11 @@ const AdminUsers = () => {
     if (!/^[a-z0-9_.-]{3,30}$/.test(u)) return toast({ title: 'Username inválido', description: '3-30 caracteres (letras, números, . _ -)', variant: 'destructive' });
     setCreating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('manage-roles?action=create', {
+      await invokeManageRoles({
+        method: 'POST',
+        headers: { 'x-action': 'create' },
         body: { ...newUser, username: u },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
       toast({ title: 'Usuário criado!', description: `Login: ${u}` });
       setNewUser({ username: '', password: '', display_name: '', role: 'organizer', telefone: '', instituicao: '', campus: '' });
       setCreateOpen(false);
@@ -74,8 +90,7 @@ const AdminUsers = () => {
     if (!pwdDialog || newPassword.length < 6) return toast({ title: 'Senha mínima de 6 caracteres', variant: 'destructive' });
     setSavingPwd(true);
     try {
-      const { error } = await supabase.functions.invoke('manage-roles?action=set-password', { body: { user_id: pwdDialog.id, new_password: newPassword } });
-      if (error) throw error;
+      await invokeManageRoles({ method: 'POST', headers: { 'x-action': 'set-password' }, body: { user_id: pwdDialog.id, new_password: newPassword } });
       toast({ title: 'Senha alterada!', description: `Nova senha definida para ${pwdDialog.name}` });
       setPwdDialog(null); setNewPassword('');
     } catch (err: any) { toast({ title: 'Erro', description: err.message, variant: 'destructive' }); }
@@ -85,8 +100,7 @@ const AdminUsers = () => {
   const deleteUser = async (userId: string) => {
     if (!confirm('Excluir este usuário permanentemente?')) return;
     try {
-      const { error } = await supabase.functions.invoke('manage-roles?action=delete', { body: { user_id: userId } });
-      if (error) throw error;
+      await invokeManageRoles({ method: 'POST', headers: { 'x-action': 'delete' }, body: { user_id: userId } });
       toast({ title: 'Usuário excluído' });
       fetchUsers();
     } catch (err: any) { toast({ title: 'Erro', description: err.message, variant: 'destructive' }); }

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Swords, ChevronLeft, ChevronRight, Trophy, Zap, Layers, Brain, Check } from 'lucide-react';
 import { SistemaDisputa, Jogo } from '@/types/competition';
 import { gerarTabelaRodizio, gerarTabelaEliminatoria } from '@/utils/disputeCalculations';
+import { getSportRule } from '@/utils/sportRules';
 
 const SISTEMAS: { key: SistemaDisputa; nome: string; desc: string; icon: typeof Trophy; ideal: string }[] = [
   { key: 'rodizio',     nome: 'Rodízio',         desc: 'Todos contra todos',           icon: Trophy, ideal: 'Mais justo · ideal para até 8 equipes' },
@@ -22,8 +23,12 @@ const Stage4Dispute = () => {
     updateDisputa({ porModalidade: { ...porModalidade, [mod]: sistema } });
   };
 
-  const equipesDaMod = (mod: string) =>
-    state.competidores.equipes.filter(e => e.modalidade === mod);
+  const participantesDaMod = (mod: string) => {
+    const regra = getSportRule(mod);
+    return regra.tipo === 'individual'
+      ? state.competidores.atletas.filter(a => a.modalidade === mod).map(a => ({ nome: a.nome, genero: a.genero || 'misto' }))
+      : state.competidores.equipes.filter(e => e.modalidade === mod).map(e => ({ nome: e.nome, genero: e.genero || 'misto' }));
+  };
 
   const todasConfiguradas = modalidades.every(m => !!porModalidade[m.nome]);
 
@@ -31,22 +36,29 @@ const Stage4Dispute = () => {
     const novosJogos: Jogo[] = [];
     modalidades.forEach(m => {
       const sis = porModalidade[m.nome];
-      const eqs = equipesDaMod(m.nome);
-      const nomes = eqs.map(e => e.nome);
-      if (!sis || nomes.length < 2) return;
+      const participantes = participantesDaMod(m.nome);
+      if (!sis || participantes.length < 2) return;
 
-      let raw: { rodada: number; jogoA: string; jogoB: string }[] = [];
-      if (sis === 'eliminatorio') raw = gerarTabelaEliminatoria(nomes);
-      else raw = gerarTabelaRodizio(nomes); // rodizio/misto/suico fallback simples
+      const porGenero = participantes.reduce<Record<string, string[]>>((acc, p) => {
+        (acc[p.genero] ||= []).push(p.nome);
+        return acc;
+      }, {});
 
-      raw.forEach((j, i) => {
-        novosJogos.push({
-          id: `${m.nome}-${j.rodada}-${i}-${crypto.randomUUID().slice(0, 8)}`,
-          rodada: j.rodada,
-          participanteA: j.jogoA,
-          participanteB: j.jogoB,
-          modalidade: m.nome,
-          esporte: m.nome,
+      Object.values(porGenero).forEach((nomes) => {
+        if (nomes.length < 2) return;
+        let raw: { rodada: number; jogoA: string; jogoB: string }[] = [];
+        if (sis === 'eliminatorio') raw = gerarTabelaEliminatoria(nomes);
+        else raw = gerarTabelaRodizio(nomes); // rodizio/misto/suico fallback simples
+
+        raw.forEach((j, i) => {
+          novosJogos.push({
+            id: `${m.nome}-${j.rodada}-${i}-${crypto.randomUUID().slice(0, 8)}`,
+            rodada: j.rodada,
+            participanteA: j.jogoA,
+            participanteB: j.jogoB,
+            modalidade: m.nome,
+            esporte: m.nome,
+          });
         });
       });
     });
@@ -67,7 +79,8 @@ const Stage4Dispute = () => {
 
       <div className="space-y-4">
         {modalidades.map(m => {
-          const eqs = equipesDaMod(m.nome);
+          const regra = getSportRule(m.nome);
+          const participantes = participantesDaMod(m.nome);
           const atual = porModalidade[m.nome];
           const jogos = jogosPorMod(m.nome);
           return (
@@ -76,10 +89,10 @@ const Stage4Dispute = () => {
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <h3 className="font-heading font-semibold text-lg">{m.nome}</h3>
-                    <Badge variant="secondary">{eqs.length} equipe(s)</Badge>
+                    <Badge variant="secondary">{participantes.length} {regra.tipo === 'individual' ? 'atleta(s)' : 'equipe(s)'}</Badge>
                     {jogos.length > 0 && <Badge className="bg-success text-success-foreground">{jogos.length} jogo(s)</Badge>}
                   </div>
-                  {eqs.length < 2 && <span className="text-xs text-destructive">Mínimo 2 equipes</span>}
+                  {participantes.length < 2 && <span className="text-xs text-destructive">Mínimo 2 {regra.tipo === 'individual' ? 'atletas' : 'equipes'}</span>}
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
