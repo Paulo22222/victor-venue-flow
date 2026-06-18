@@ -24,6 +24,8 @@ interface CompetitionContextType {
   updateDisputa: (data: Partial<DisputaData>) => void;
   updateLogistica: (data: Partial<LogisticaData>) => void;
   setJogos: (jogos: Jogo[]) => void;
+  addJogo: (jogo: Jogo) => void;
+  removeJogo: (jogoId: string) => void;
   updateJogo: (jogoId: string, patch: Partial<Jogo>) => void;
   updateResultado: (jogoId: string, placarA: number, placarB: number) => void;
   save: () => Promise<void>;
@@ -46,6 +48,12 @@ export const CompetitionProvider = ({ children }: { children: ReactNode }) => {
   const updateDisputa = (data: Partial<DisputaData>) => setState(prev => ({ ...prev, disputa: { ...prev.disputa, ...data } }));
   const updateLogistica = (data: Partial<LogisticaData>) => setState(prev => ({ ...prev, logistica: { ...prev.logistica, ...data } }));
   const setJogos = (jogos: Jogo[]) => setState(prev => ({ ...prev, jogos }));
+  const addJogo = (jogo: Jogo) => setState(prev => ({ ...prev, jogos: [...prev.jogos, jogo] }));
+  const removeJogo = (jogoId: string) => setState(prev => {
+    const resultados = { ...prev.resultados };
+    delete resultados[jogoId];
+    return { ...prev, jogos: prev.jogos.filter(j => j.id !== jogoId), resultados };
+  });
   const updateJogo = (jogoId: string, patch: Partial<Jogo>) =>
     setState(prev => ({ ...prev, jogos: prev.jogos.map(j => j.id === jogoId ? { ...j, ...patch } : j) }));
   const updateResultado = (jogoId: string, placarA: number, placarB: number) =>
@@ -123,7 +131,7 @@ export const CompetitionProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <CompetitionContext.Provider value={{ state, competitionId, saving, setStep, updateEvento, updateCompetidores, updateDisputa, updateLogistica, setJogos, updateJogo, updateResultado, save, load, resetState, remove, finalize }}>
+    <CompetitionContext.Provider value={{ state, competitionId, saving, setStep, updateEvento, updateCompetidores, updateDisputa, updateLogistica, setJogos, addJogo, removeJogo, updateJogo, updateResultado, save, load, resetState, remove, finalize }}>
       {children}
     </CompetitionContext.Provider>
   );

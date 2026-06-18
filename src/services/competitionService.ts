@@ -82,38 +82,43 @@ export async function saveCompetition(state: CompetitionState, existingId?: stri
     competitionId = data.id;
   }
 
+  const ensureOk = (res: { error: any }, action: string) => {
+    if (res.error) throw new Error(`${action}: ${res.error.message}`);
+  };
+
   // Limpa relacionados
-  await Promise.all([
+  const clearResults = await Promise.all([
     supabase.from('competition_modalities').delete().eq('competition_id', competitionId),
     supabase.from('competition_athletes').delete().eq('competition_id', competitionId),
     supabase.from('competition_matches').delete().eq('competition_id', competitionId),
     supabase.from('competition_dispute_systems').delete().eq('competition_id', competitionId),
     supabase.from('competition_selected_teams').delete().eq('competition_id', competitionId),
   ]);
-  await supabase.from('competition_teams').delete().eq('competition_id', competitionId);
+  clearResults.forEach((res, idx) => ensureOk(res, ['Limpar modalidades', 'Limpar atletas', 'Limpar confrontos', 'Limpar disputas', 'Limpar equipes selecionadas'][idx]));
+  ensureOk(await supabase.from('competition_teams').delete().eq('competition_id', competitionId), 'Limpar equipes');
 
   // Modalidades
   if (state.competidores.modalidades.length > 0) {
-    await supabase.from('competition_modalities').insert(
+    ensureOk(await supabase.from('competition_modalities').insert(
       state.competidores.modalidades.map(m => ({
         competition_id: competitionId,
         nome: m.nome,
       }))
-    );
+    ), 'Salvar modalidades');
   }
 
   // Atletas individuais
   if (state.competidores.atletas.length > 0) {
-    await supabase.from('competition_athletes').insert(
+    ensureOk(await supabase.from('competition_athletes').insert(
       state.competidores.atletas.map(a => ({
         competition_id: competitionId,
         nome: a.nome,
         genero: a.genero,
         codigo: a.codigo || null,
         modalidade: a.modalidade || null,
-        inscricao_individual: (a as any).inscricaoIndividual ?? false,
+        inscricao_individual: a.inscricaoIndividual ?? false,
       }))
-    );
+    ), 'Salvar atletas');
   }
 
   for (const equipe of state.competidores.equipes) {
@@ -130,34 +135,34 @@ export async function saveCompetition(state: CompetitionState, existingId?: stri
     if (teamError) throw teamError;
 
     if (equipe.integrantes.length > 0) {
-      await supabase.from('team_members').insert(
+      ensureOk(await supabase.from('team_members').insert(
         equipe.integrantes.map(i => ({
           team_id: teamData.id,
           nome: i.nome,
           genero: i.genero,
           codigo: i.codigo || null,
         }))
-      );
+      ), 'Salvar atletas da equipe');
     }
 
     if (equipe.organizerTeamId) {
-      await supabase.from('competition_selected_teams').insert({
+      ensureOk(await supabase.from('competition_selected_teams').insert({
         competition_id: competitionId,
         organizer_team_id: equipe.organizerTeamId,
         modalidade: equipe.modalidade || '',
-      });
+      }), 'Salvar vínculo da equipe');
     }
   }
 
   const sistemas = Object.entries(state.disputa.porModalidade || {}).filter(([, s]) => !!s);
   if (sistemas.length > 0) {
-    await supabase.from('competition_dispute_systems').insert(
+    ensureOk(await supabase.from('competition_dispute_systems').insert(
       sistemas.map(([modalidade, sistema]) => ({
         competition_id: competitionId,
         modalidade,
         sistema: sistema as string,
       }))
-    );
+    ), 'Salvar sistemas de disputa');
   }
 
   let savedMatches: { id: string; localId: string }[] = [];
@@ -214,6 +219,7 @@ export async function loadCompetition(id: string): Promise<CompetitionState> {
     id: a.id, nome: a.nome, dataNascimento: '', documento: '',
     genero: (a.genero as Atleta['genero']) || 'masculino',
     codigo: a.codigo || undefined, modalidade: a.modalidade || undefined,
+    inscricaoIndividual: (a as any).inscricao_individual ?? false,
   }));
 
   const selByName: Record<string, string> = {};

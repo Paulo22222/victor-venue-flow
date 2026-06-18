@@ -48,6 +48,14 @@ export interface SportRule {
   colunas: RankingColumn[];
 }
 
+export const normalizeSportName = (modalidade?: string) =>
+  (modalidade || '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .toUpperCase();
+
 const COLS_FUTSAL: RankingColumn[] = [
   { key: 'P', label: 'Pts' }, { key: 'J', label: 'J' },
   { key: 'V', label: 'V' }, { key: 'E', label: 'E' }, { key: 'D', label: 'D' },
@@ -137,7 +145,7 @@ export const SPORT_RULES: Record<string, SportRule> = {
 
   XADREZ: make('XADREZ', 'Xadrez', 'pontos', {
     permiteEmpate: true, scoreMax: 1, cor: 'bg-slate-600',
-    pontuacaoRanking: { vitoria: 1, empate: 0, derrota: 0 },
+    pontuacaoRanking: { vitoria: 1, empate: 0.5, derrota: 0 },
     descricaoPontuacao: 'Vitória 1 · Empate ½ · Derrota 0',
     tipo: 'individual', colunas: COLS_PADRAO,
   }),
@@ -182,10 +190,23 @@ export const SPORT_RULES: Record<string, SportRule> = {
 
 export const DEFAULT_RULE: SportRule = make('OUTRO', 'Outro', 'pontos', { scoreMax: 999 });
 
+const RULE_ALIASES: Record<string, string> = Object.keys(SPORT_RULES).reduce((acc, key) => {
+  acc[normalizeSportName(key)] = key;
+  return acc;
+}, {} as Record<string, string>);
+
+RULE_ALIASES.VOLEI = 'VOLEI';
+RULE_ALIASES['VOLEI DE PRAIA'] = 'VOLEI DE PRAIA';
+RULE_ALIASES['TENIS DE MESA'] = 'TENIS DE MESA';
+RULE_ALIASES['ARREMESSO PESO'] = 'ARREMESSO DE PESO';
+RULE_ALIASES['LANCAMENTO DARDO'] = 'LANCAMENTO DE DARDO';
+RULE_ALIASES['SALTO DISTANCIA'] = 'SALTO EM DISTANCIA';
+RULE_ALIASES['SALTO ALTURA'] = 'SALTO EM ALTURA';
+
 export const getSportRule = (modalidade?: string): SportRule => {
   if (!modalidade) return DEFAULT_RULE;
-  const upper = modalidade.toUpperCase();
-  return SPORT_RULES[upper] ?? DEFAULT_RULE;
+  const alias = RULE_ALIASES[normalizeSportName(modalidade)];
+  return (alias ? SPORT_RULES[alias] : undefined) ?? DEFAULT_RULE;
 };
 
 // Pontos para o ranking conforme a regra específica da modalidade
@@ -209,6 +230,7 @@ export const aplicarPartida = (
   placarA: number, placarB: number, ehLadoA: boolean,
   detalhes?: { sets?: number[][] } | null
 ) => {
+  if (placarA === placarB && !regra.permiteEmpate) return;
   linha.J += 1;
   const propria = ehLadoA ? placarA : placarB;
   const adversa = ehLadoA ? placarB : placarA;
@@ -224,7 +246,7 @@ export const aplicarPartida = (
     // placar agregado = sets vencidos
     linha.SetsV += propria; linha.SetsP += adversa;
     // soma de pontos por set
-    if (detalhes?.sets) {
+    if (Array.isArray(detalhes?.sets)) {
       detalhes.sets.forEach(([a, b]) => {
         if (ehLadoA) { linha.GP += a || 0; linha.GC += b || 0; }
         else { linha.GP += b || 0; linha.GC += a || 0; }
@@ -235,6 +257,34 @@ export const aplicarPartida = (
     linha.GamesV += propria; linha.GamesP += adversa;
   }
 };
+
+const diff = (row: RankingRow, pro: keyof RankingRow, contra: keyof RankingRow) =>
+  Number(row[pro] || 0) - Number(row[contra] || 0);
+
+export const compareRankingRows = (regra: SportRule, a: RankingRow, b: RankingRow) => {
+  if (b.P !== a.P) return b.P - a.P;
+  if (b.V !== a.V) return b.V - a.V;
+
+  if (regra.inputTipo === 'sets') {
+    const sets = diff(b, 'SetsV', 'SetsP') - diff(a, 'SetsV', 'SetsP');
+    if (sets !== 0) return sets;
+    const pontos = diff(b, 'GP', 'GC') - diff(a, 'GP', 'GC');
+    if (pontos !== 0) return pontos;
+    if (b.GP !== a.GP) return b.GP - a.GP;
+  } else if (regra.inputTipo === 'games') {
+    const games = diff(b, 'GamesV', 'GamesP') - diff(a, 'GamesV', 'GamesP');
+    if (games !== 0) return games;
+    if (b.GamesV !== a.GamesV) return b.GamesV - a.GamesV;
+  } else {
+    if (b.SG !== a.SG) return b.SG - a.SG;
+    if (b.GP !== a.GP) return b.GP - a.GP;
+  }
+
+  return a.participante.localeCompare(b.participante, 'pt-BR');
+};
+
+export const sortRanking = (regra: SportRule, rows: RankingRow[]) =>
+  [...rows].sort((a, b) => compareRankingRows(regra, a, b));
 
 export const MODALIDADES_DISPONIVEIS: { id: string; desc: string }[] = [
   { id: 'FUTSAL', desc: 'Futebol de salão' },
