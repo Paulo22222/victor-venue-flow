@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => ({
           react: ["react", "react-dom", "react-router-dom"],
           supabase: ["@supabase/supabase-js"],
           query: ["@tanstack/react-query"],
-          pdf: ["jspdf", "qrcode"],
+          pdf: ["jspdf"],
           ui: [
             "@radix-ui/react-dialog",
             "@radix-ui/react-dropdown-menu",
